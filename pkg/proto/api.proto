@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package Burovichok;
+
+option go_package = "pbburovichok";
+
+service TechCardService {
+  rpc UploadMeasurements(UploadRequest) returns (UploadResponse);
+}
+
+message UploadRequest {
+  //csv 1, xmlx 2
+  int32 file_extension = 1;
+  //блок 1, 2, 3, 4
+  int32 content_type = 2;
+  string table = 3;
+}
+
+
+message UploadResponse {
+  //Таблица, насыщенная новыми данными
+  string table = 1;
+}
