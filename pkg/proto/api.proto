@@ -8,16 +8,31 @@ service TechCardService {
   rpc UploadMeasurements(UploadRequest) returns (UploadResponse);
 }
 
+enum FileExtension {
+  FileExtension_XSLX = 0;
+  FileExtension_CSV = 1;
+}
+
+enum ContentType {
+  ContentType_ZABOY_PRESSURE_TEMPERATURE = 0;
+  ContentType_PIPE_CASING_LINEAR_PRESSURE = 1;
+  ContentType_DEBIT = 3;
+  ContentType_INCLINOMETRY = 4;
+}
+
 message UploadRequest {
-  //csv 1, xmlx 2
-  int32 file_extension = 1;
-  //блок 1, 2, 3, 4
-  int32 content_type = 2;
+  FileExtension file_extension = 1;
+  ContentType content_type = 2;
   string table = 3;
 }
 
+enum ResponseStatus{
+  ResponseStatus_OK = 0;
+  ResponseStatus_BAD_REQUSET = 1;
+  ResponseStatus_INTERNAL_ERROR = 2;
+}
 
 message UploadResponse {
-  //Таблица, насыщенная новыми данными
-  string table = 1;
+  ResponseStatus status = 1;
+  optional string message = 2;
 }
