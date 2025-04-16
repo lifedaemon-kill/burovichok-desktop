@@ -2,18 +2,19 @@ package main
 
 import (
 	"fmt"
-	"internal/pkg/logger"
+	"internal/pkg/logger/z/logger.go"
 )
 
 const configPath = "config/config.yaml"
 
 func main() {
-	fmt.Println("Start")
-	conf := config.Load(configPath)
-	zlog.InitLogger()
-	defer W.Sync()
-	fmt.Println(conf)
+	fmt.Println("start app")
+	z.InitLogger()
+	defer Log.Sync()
+	z.Log.Info("zap logger init success")
 
-	zlog.W.Info("Hello zap logger!")
-	fmt.Println("End")
+	conf := config.Load(configPath)
+	z.Log.Info("config load success", "conf", conf)
+
+	z.Log.Info("end")
 }
