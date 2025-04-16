@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/widget"
 	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/config"
 	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/logger/z"
 	"log"
@@ -31,15 +34,14 @@ func bootstrap(ctx context.Context) error {
 	defer z.Log.Sync()
 	z.Log.Info("init logger and config success")
 
-	/*
-		burApp := app.New()
-		burWindow := burApp.NewWindow("burovichok")
-		text := widget.NewLabel("hello, burovichok!")
-		burWindow.SetContent(text)
-		burWindow.Resize(fyne.NewSize(800, 400))
-		burWindow.ShowAndRun()
-	*/
-	<-ctx.Done()
+	burApp := app.New()
+	burWindow := burApp.NewWindow("burovichok")
+	text := widget.NewLabel("hello, burovichok!")
+	burWindow.SetContent(text)
+	burWindow.Resize(fyne.NewSize(800, 400))
+	burWindow.ShowAndRun()
+
+	//<-ctx.Done()
 	z.Log.Info("context done, shutting down...")
 
 	//	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
