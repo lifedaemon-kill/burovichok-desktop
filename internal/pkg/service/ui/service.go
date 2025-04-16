@@ -1,88 +1,86 @@
 package ui
 
 import (
-	"bytes"
-	"image/png"
-	"math"
+	"fmt"
+	"image/color"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"github.com/cockroachdb/errors"
-	"github.com/wcharczuk/go-chart/v2"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/storage"
+	"fyne.io/fyne/v2/widget"
+
+	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/logger"
+	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/models"
 )
 
-// Service отвечает за инициализацию и запуск UI приложения.
-type Service struct {
-	App    fyne.App
-	Window fyne.Window
+// Importer умеет парсить файлы блоков.
+type Importer interface {
+	ParseBlockOneFile(path string) ([]models.BlockOne, error)
 }
 
-// NewService создает новый UI‑сервис с указанным заголовком и размерами окна.
-func NewService(title string, width, height int) *Service {
+// Service отвечает за UI.
+type Service struct {
+	app      fyne.App
+	window   fyne.Window
+	zLog     logger.Logger
+	importer Importer
+}
+
+// NewService создаёт сервис UI.
+func NewService(title string, width, height int, zLog logger.Logger, importer Importer) *Service {
 	a := app.New()
 	w := a.NewWindow(title)
 	w.Resize(fyne.NewSize(float32(width), float32(height)))
-
-	return &Service{
-		App:    a,
-		Window: w,
-	}
+	return &Service{app: a, window: w, zLog: zLog, importer: importer}
 }
 
-// GenerateData возвращает пример данных (синусоиду) для отображения графика.
-func GenerateData(points int) ([]float64, []float64) {
-	x := make([]float64, points)
-	y := make([]float64, points)
-	for i := 0; i < points; i++ {
-		val := float64(i) * 2 * math.Pi / float64(points-1)
-		x[i] = val
-		y[i] = math.Sin(val)
-	}
-	return x, y
-}
-
-// RenderChart создаёт изображение графика в виде canvas.Image по переданным данным.
-func RenderChart(xvals, yvals []float64, width, height int) (*canvas.Image, error) {
-	graph := chart.Chart{
-		Width:  width,
-		Height: height,
-		Series: []chart.Series{
-			chart.ContinuousSeries{XValues: xvals, YValues: yvals},
-		},
-	}
-
-	var buf bytes.Buffer
-	if err := graph.Render(chart.PNG, &buf); err != nil {
-		return nil, errors.Wrap(err, "graph.Render")
-	}
-
-	imgData, err := png.Decode(&buf)
-	if err != nil {
-		return nil, errors.Wrap(err, "png.Decode")
-	}
-
-	img := canvas.NewImageFromImage(imgData)
-	img.FillMode = canvas.ImageFillContain
-	img.SetMinSize(fyne.NewSize(float32(width), float32(height)))
-
-	return img, nil
-}
-
-// Run инициализирует данные, рендерит график и запускает UI. Возвращает ошибку при неудаче.
+// Run строит окно, рисует фон и кликабельный квадратик, запускает UI.
 func (s *Service) Run() error {
-	// Генерация данных
-	x, y := GenerateData(100)
-	// Рендеринг графика
-	img, err := RenderChart(x, y, 600, 300)
-	if err != nil {
-		return errors.Wrap(err, "RenderChart")
-	}
-	// Установка содержимого окна
-	s.Window.SetContent(container.NewCenter(img))
-	// Запуск UI (блокирующий)
-	s.Window.ShowAndRun()
+	// Белый фон всего окна
+	bg := canvas.NewRectangle(color.White)
+	bg.Move(fyne.NewPos(0, 0))
+	bg.Resize(s.window.Canvas().Size())
 
+	// Кликабельный прямоугольник
+	rect := canvas.NewRectangle(color.NRGBA{R: 0, G: 122, B: 204, A: 255})
+	rect.StrokeWidth = 2
+	rect.StrokeColor = color.Black
+	rect.Move(fyne.NewPos(31, 86))
+	rect.Resize(fyne.NewSize(721, 677))
+
+	// Невидимая кнопка для обработки клика
+	btn := widget.NewButton("", func() {
+		dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
+			if err != nil {
+				dialog.ShowError(err, s.window)
+				return
+			}
+			if r == nil {
+				return
+			}
+			defer r.Close()
+			path := r.URI().Path()
+			rows, err := s.importer.ParseBlockOneFile(path)
+			if err != nil {
+				s.zLog.Errorw("failed to parse file", "error", err)
+				return
+			}
+			fmt.Println(rows)
+		}, s.window)
+		dlg.SetFilter(storage.NewExtensionFileFilter([]string{".xlsx"}))
+		dlg.Show()
+	})
+	// Задаём размер и положение кнопки вместо SetMinSize
+	btn.Resize(fyne.NewSize(721, 677))
+	btn.Move(fyne.NewPos(31, 86))
+
+	// Контейнер для абсолютного позиционирования
+	content := container.NewWithoutLayout(bg, rect, btn)
+
+	s.window.SetContent(content)
+	s.window.ShowAndRun()
 	return nil
 }

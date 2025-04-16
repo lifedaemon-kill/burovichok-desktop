@@ -10,6 +10,7 @@ import (
 
 	"github.com/lifedaemon-kill/burovichok-backend/internal/config"
 	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/logger"
+	importerService "github.com/lifedaemon-kill/burovichok-backend/internal/pkg/service/importer"
 	uiService "github.com/lifedaemon-kill/burovichok-backend/internal/pkg/service/ui"
 )
 
@@ -36,8 +37,10 @@ func bootstrap(ctx context.Context) error {
 
 	zLog.Infow("Logger and config initialized successfully")
 
-	ui := uiService.NewService("burovichok", 800, 400)
-	if err = ui.Run(); err != nil {
+	importer := importerService.NewService()
+
+	ui := uiService.NewService("burovichok", 1920, 1080, zLog, importer)
+	if err := ui.Run(); err != nil {
 		zLog.Errorw("UI service failed", "error", err)
 		return err
 	}
