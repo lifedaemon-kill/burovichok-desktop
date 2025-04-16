@@ -2,23 +2,21 @@ package main
 
 import (
 	"context"
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/widget"
-	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/config"
-	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/logger/z"
 	"log"
 	"os/signal"
 	"syscall"
-)
 
-const configPath = "config/config.yaml"
+	"github.com/cockroachdb/errors"
+
+	"github.com/lifedaemon-kill/burovichok-backend/internal/config"
+	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/logger"
+	uiService "github.com/lifedaemon-kill/burovichok-backend/internal/pkg/service/ui"
+)
 
 func main() {
 	ctx := context.Background()
-	err := bootstrap(ctx)
-	if err != nil {
-		log.Fatalf("main bootstrap failed: %v", err)
+	if err := bootstrap(ctx); err != nil {
+		log.Fatalf("[main] bootstrap failed: %v", err)
 	}
 }
 
@@ -26,28 +24,23 @@ func bootstrap(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	conf := config.Load(configPath)
-
-	if err := z.InitLogger(conf.Logger); err != nil {
-		log.Fatalf("init logger error: %s", err)
+	conf, err := config.Load(config.PathConfig)
+	if err != nil {
+		return errors.Wrap(err, "config.Load")
 	}
-	defer z.Log.Sync()
-	z.Log.Info("init logger and config success")
 
-	burApp := app.New()
-	burWindow := burApp.NewWindow("burovichok")
-	text := widget.NewLabel("hello, burovichok!")
-	burWindow.SetContent(text)
-	burWindow.Resize(fyne.NewSize(800, 400))
-	burWindow.ShowAndRun()
+	zLog, err := logger.NewLogger(conf.Logger.Env)
+	if err != nil {
+		return errors.Wrap(err, "logger.NewLogger")
+	}
 
-	//<-ctx.Done()
-	z.Log.Info("context done, shutting down...")
+	zLog.Infow("Logger and config initialized successfully")
 
-	//	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	//	defer shutdownCancel()
+	ui := uiService.NewService("burovichok", 800, 400)
+	ui.Run()
 
-	//TODO завершить sqlite
-	z.Log.Info("shutting down completed")
+	zLog.Infow("Application shutting down...")
+	zLog.Infow("Shutdown completed")
+
 	return nil
 }
