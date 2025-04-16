@@ -1,4 +1,6 @@
-package techcard
+package upload
+
+import "github.com/xuri/excelize/v2"
 
 type Service interface {
 	UploadBlockOne([]byte data, int contentType, fileExtension) ([]byte, error)

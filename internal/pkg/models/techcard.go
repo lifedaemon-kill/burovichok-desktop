@@ -12,19 +12,10 @@ const (
 	ContentType_INCLINOMETRY
 )
 
-message UploadRequest {
-FileExtension file_extension = 1;
-ContentType content_type = 2;
-string table = 3;
-}
+const (
+	ResponseStatus_OK = iota
+	ResponseStatus_BAD_REQUSET
+	ResponseStatus_INTERNAL_ERROR
+)
 
-enum ResponseStatus{
-ResponseStatus_OK = 0;
-ResponseStatus_BAD_REQUSET = 1;
-ResponseStatus_INTERNAL_ERROR = 2;
-}
-
-message UploadResponse {
-ResponseStatus status = 1;
-optional string message = 2;
-}
+// TODO Дописать единицы измерения
