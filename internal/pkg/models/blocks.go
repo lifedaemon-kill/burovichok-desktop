@@ -2,14 +2,14 @@ package models
 
 import "time"
 
-// BlockOne модель для файла  Рзаб и Тзаб.xlsx.
+// BlockOne модель для файла  "Рзаб и Тзаб".
 type BlockOne struct {
 	Timestamp   time.Time `xlsx:"Дата, время"`                     // колонка A
 	Pressure    float64   `xlsx:"Рзаб на глубине замера, кгс/см2"` // колонка B
 	Temperature float64   `xlsx:"Tзаб на глубине замера, оС"`      // колонка C
 }
 
-// BlockTwo соответствует блокам «Загрузка Ртр, Рзтр, Рлин».
+// BlockTwo соответствует блокам "Загрузка Ртр, Рзтр, Рлин".
 // Каждая запись содержит три замера давления с их временными метками.
 type BlockTwo struct {
 	// Замер давления в трубном пространстве
@@ -25,7 +25,12 @@ type BlockTwo struct {
 	PressureLinear  float64   `json:"pressure_linear"`  // из колонки F: «Рлин, кгс/см2»
 }
 
+// BlockThree соответствует блоку 3: "Данные по дебитам".
 type BlockThree struct {
+	Timestamp  time.Time `json:"timestamp"`
+	FlowLiquid float64   `json:"flow_liquid"` // Qж, м3/сут
+	WaterCut   float64   `json:"water_cut"`   // W, %
+	FlowGas    float64   `json:"flow_gas"`    // Qг, тыс. м3/сут
 }
 
 type BlockFour struct {

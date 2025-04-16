@@ -132,6 +132,52 @@ func (s *Service) ParseBlockTwoFile(path string) ([]models.BlockTwo, error) {
 	return out, nil
 }
 
+// ParseBlockThreeFile читает дебиты: дата/время, Qж, W, Qг.
+func (s *Service) ParseBlockThreeFile(path string) ([]models.BlockThree, error) {
+	f, err := excelize.OpenFile(path)
+	if err != nil {
+		return nil, errors.Wrap(err, "open file")
+	}
+
+	const sheet = "Инструментальный замер"
+	rows := f.GetRows(sheet)
+
+	var out []models.BlockThree
+	for i, row := range rows[1:] {
+		if len(row) < 4 {
+			continue
+		}
+		// Время
+		ts, err := parseExcelDateOrString(row[0])
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse timestamp on row %d", i+2)
+		}
+		// Qж
+		flowL, err := strconv.ParseFloat(row[1], 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse flow liquid on row %d", i+2)
+		}
+		// W
+		wc, err := strconv.ParseFloat(row[2], 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse water cut on row %d", i+2)
+		}
+		// Qг
+		flowG, err := strconv.ParseFloat(row[3], 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse flow gas on row %d", i+2)
+		}
+
+		out = append(out, models.BlockThree{
+			Timestamp:  ts,
+			FlowLiquid: flowL,
+			WaterCut:   wc,
+			FlowGas:    flowG,
+		})
+	}
+	return out, nil
+}
+
 // parseExcelDateOrString умеет разобрать и serial‑дату Excel (число) и строковый формат DD/MM/YYYY HH:MM:SS.
 func parseExcelDateOrString(raw string) (time.Time, error) {
 	// попытаемся сначала как число

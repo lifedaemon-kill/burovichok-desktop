@@ -44,6 +44,7 @@ func (r *ratioLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 type Importer interface {
 	ParseBlockOneFile(path string) ([]models.BlockOne, error)
 	ParseBlockTwoFile(path string) ([]models.BlockTwo, error)
+	ParseBlockThreeFile(path string) ([]models.BlockThree, error)
 }
 
 // Service отвечает за инициализацию и запуск UI приложения.
@@ -64,17 +65,13 @@ func NewService(title string, width, height int, zLog logger.Logger, importer Im
 
 // Run строит интерфейс с тремя контролами и запускает приложение.
 func (s *Service) Run() error {
-	// 1) Поле для пути и кнопка выбора
+	// Поле и кнопка выбора файла
 	pathEntry := widget.NewEntry()
 	pathEntry.SetPlaceHolder("Файл не выбран")
-
 	chooseBtn := widget.NewButton("Выбрать файл", func() {
 		dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
-			if err != nil {
+			if r == nil || err != nil {
 				dialog.ShowError(err, s.window)
-				return
-			}
-			if r == nil {
 				return
 			}
 			defer r.Close()
@@ -84,55 +81,49 @@ func (s *Service) Run() error {
 		dlg.Show()
 	})
 
-	// Компоновка поля и кнопки с соотношением 70/30
-	head := container.New(&ratioLayout{ratio: 0.7}, pathEntry, chooseBtn)
-
-	// 2) Выпадающий список типов документов
-	docTypes := []string{"BlockOne", "BlockTwo"}
+	// Выбор типа документа
+	docTypes := []string{"BlockOne", "BlockTwo", "BlockThree"}
 	typeSelect := widget.NewSelect(docTypes, func(string) {})
 	typeSelect.PlaceHolder = "Выберите тип документа"
 
-	// 3) Кнопка Import
+	// Import
 	importBtn := widget.NewButton("Import", func() {
 		path := pathEntry.Text
 		docType := typeSelect.Selected
-		if path == "" {
-			dialog.ShowInformation("Ошибка", "Сначала выберите файл", s.window)
+		if path == "" || docType == "" {
+			dialog.ShowInformation("Ошибка", "Сначала выберите файл и тип документа", s.window)
 			return
 		}
-		if docType == "" {
-			dialog.ShowInformation("Ошибка", "Сначала выберите тип документа", s.window)
-			return
-		}
-
 		s.zLog.Infow("Start import", "path", path, "type", docType)
 		var count int
 		var err error
+
 		switch docType {
 		case "BlockOne":
 			data, e := s.importer.ParseBlockOneFile(path)
-			err = e
-			count = len(data)
+			err, count = e, len(data)
 		case "BlockTwo":
 			data, e := s.importer.ParseBlockTwoFile(path)
-			err = e
-			count = len(data)
+			err, count = e, len(data)
+		case "BlockThree":
+			data, e := s.importer.ParseBlockThreeFile(path)
+			err, count = e, len(data)
 		}
 		if err != nil {
 			s.zLog.Errorw("Import failed", "error", err)
 			dialog.ShowError(err, s.window)
 			return
 		}
-		dialog.ShowInformation("Завершено", fmt.Sprintf("Импортировано %d записей", count), s.window)
+		dialog.ShowInformation("Готово", fmt.Sprintf("Импортировано %d записей", count), s.window)
 	})
 
-	// Сборка всего контента
+	// Компоновка
+	header := container.NewHBox(pathEntry, chooseBtn)
 	content := container.NewVBox(
-		head,
+		header,
 		typeSelect,
 		importBtn,
 	)
-
 	s.window.SetContent(content)
 	s.window.ShowAndRun()
 	return nil
