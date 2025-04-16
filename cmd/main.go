@@ -39,7 +39,7 @@ func bootstrap(ctx context.Context) error {
 
 	importer := importerService.NewService()
 
-	ui := uiService.NewService("burovichok", 1920, 1080, zLog, importer)
+	ui := uiService.NewService(conf.UI.Name, conf.UI.Width, conf.UI.Height, zLog, importer)
 	if err := ui.Run(); err != nil {
 		zLog.Errorw("UI service failed", "error", err)
 		return err
