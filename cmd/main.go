@@ -37,7 +37,10 @@ func bootstrap(ctx context.Context) error {
 	zLog.Infow("Logger and config initialized successfully")
 
 	ui := uiService.NewService("burovichok", 800, 400)
-	ui.Run()
+	if err = ui.Run(); err != nil {
+		zLog.Errorw("UI service failed", "error", err)
+		return err
+	}
 
 	zLog.Infow("Application shutting down...")
 	zLog.Infow("Shutdown completed")
