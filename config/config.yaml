@@ -1,0 +1,4 @@
+env: prod
+
+db:
+  dsn: "user= dbname= password= sslmode= host= port="

@@ -2,11 +2,15 @@ package main
 
 import (
 	"fmt"
-	"time"
 )
+
+const configPath = "config/config.yaml"
 
 func main() {
 	fmt.Println("Start")
-	time.Sleep(3 * time.Second)
+	conf := config.Load(configPath)
+
+	fmt.Println(conf)
+
 	fmt.Println("End")
 }
