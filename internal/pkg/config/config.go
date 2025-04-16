@@ -1,5 +1,11 @@
 package config
 
+import (
+	"github.com/ilyakaznacheev/cleanenv"
+	"log"
+	"os"
+)
+
 type Config struct {
 	ENV string `yaml:"env" env-required:"true"`
 	DB  DB     `yaml:"db" env-required:"true"`

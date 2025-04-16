@@ -2,19 +2,21 @@ package main
 
 import (
 	"fmt"
-	"internal/pkg/logger/z/logger.go"
+	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/config"
+	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/logger/z"
 )
 
 const configPath = "config/config.yaml"
 
 func main() {
 	fmt.Println("start app")
-	z.InitLogger()
-	defer Log.Sync()
-	z.Log.Info("zap logger init success")
-
 	conf := config.Load(configPath)
-	z.Log.Info("config load success", "conf", conf)
 
-	z.Log.Info("end")
+	z.InitLogger()
+	defer z.Log.Sync()
+	z.Log.Infow("zap logger init success")
+
+	z.Log.Infow("config load success", "conf", conf)
+
+	fmt.Println("end")
 }
