@@ -118,7 +118,7 @@ func (s *Service) Run() error {
 	})
 
 	// Компоновка
-	header := container.NewHBox(pathEntry, chooseBtn)
+	header := container.New(&ratioLayout{ratio: 0.7}, pathEntry, chooseBtn)
 	content := container.NewVBox(
 		header,
 		typeSelect,
