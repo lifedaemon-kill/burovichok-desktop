@@ -7,8 +7,9 @@ import (
 )
 
 type Config struct {
-	ENV string `yaml:"env" env-required:"true"`
-	DB  DB     `yaml:"db" env-required:"true"`
+	ENV    string     `yaml:"env" env-required:"true"`
+	DB     DBConf     `yaml:"db" env-required:"true"`
+	Logger LoggerConf `yaml:"logger" env-required:"true"`
 }
 
 func Load(configPath string) *Config {
@@ -29,6 +30,9 @@ func Load(configPath string) *Config {
 	return &cfg
 }
 
-type DB struct {
+type DBConf struct {
 	dsn string `yaml:"dsn" env-required:"true"`
+}
+type LoggerConf struct {
+	Env string `yaml:"env" env-required:"true"`
 }
