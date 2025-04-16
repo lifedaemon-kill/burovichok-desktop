@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -28,7 +29,7 @@ func (r *ratioLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 	objects[1].Move(fyne.NewPos(firstWidth, 0))
 }
 
-// MinSize возвращает минимальный размер контейнера, равный высоте самого "высокого" элемента.
+// MinSize возвращает минимальный размер контейнера по высоте самого "высокого" элемента.
 func (r *ratioLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	var height float32
 	for _, o := range objects {
@@ -40,7 +41,7 @@ func (r *ratioLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(0, height)
 }
 
-// Importer умеет парсить два типа блоков.
+// Importer умеет парсить три типа блоков.
 type Importer interface {
 	ParseBlockOneFile(path string) ([]models.BlockOne, error)
 	ParseBlockTwoFile(path string) ([]models.BlockTwo, error)
@@ -86,7 +87,7 @@ func (s *Service) Run() error {
 	typeSelect := widget.NewSelect(docTypes, func(string) {})
 	typeSelect.PlaceHolder = "Выберите тип документа"
 
-	// Import
+	// Import кнопка
 	importBtn := widget.NewButton("Import", func() {
 		path := pathEntry.Text
 		docType := typeSelect.Selected
@@ -94,6 +95,10 @@ func (s *Service) Run() error {
 			dialog.ShowInformation("Ошибка", "Сначала выберите файл и тип документа", s.window)
 			return
 		}
+
+		// Засекаем время
+		start := time.Now()
+
 		s.zLog.Infow("Start import", "path", path, "type", docType)
 		var count int
 		var err error
@@ -109,21 +114,34 @@ func (s *Service) Run() error {
 			data, e := s.importer.ParseBlockThreeFile(path)
 			err, count = e, len(data)
 		}
+
 		if err != nil {
 			s.zLog.Errorw("Import failed", "error", err)
 			dialog.ShowError(err, s.window)
 			return
 		}
-		dialog.ShowInformation("Готово", fmt.Sprintf("Импортировано %d записей", count), s.window)
+
+		// Вычисление затраченного времени
+		elapsed := time.Since(start)
+
+		// Информируем пользователя
+		dialog.ShowInformation(
+			"Готово",
+			fmt.Sprintf("Импортировано %d записей за %s", count, elapsed),
+			s.window,
+		)
 	})
 
-	// Компоновка
-	header := container.New(&ratioLayout{ratio: 0.7}, pathEntry, chooseBtn)
+	// Компоновка: 70% для поля и 30% для кнопки
+	head := container.New(&ratioLayout{ratio: 0.7}, pathEntry, chooseBtn)
+
+	// Собираем всё вместе
 	content := container.NewVBox(
-		header,
+		head,
 		typeSelect,
 		importBtn,
 	)
+
 	s.window.SetContent(content)
 	s.window.ShowAndRun()
 	return nil

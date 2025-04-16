@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	excelize "github.com/360EntSecGroup-Skylar/excelize"
+	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/cockroachdb/errors"
 
 	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/models"
