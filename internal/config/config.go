@@ -17,6 +17,7 @@ type Config struct {
 	ENV    string     `yaml:"env" env-required:"true"`
 	DB     DBConf     `yaml:"db" env-required:"true"`
 	Logger LoggerConf `yaml:"logger" env-required:"true"`
+	UI     UI         `yaml:"ui" env-required:"true"`
 }
 
 func Load(configPath string) (*Config, error) {
@@ -39,4 +40,10 @@ type DBConf struct {
 
 type LoggerConf struct {
 	Env string `yaml:"env" env-required:"true"`
+}
+
+type UI struct {
+	Name   string `yaml:"name" env-required:"true"`
+	Width  int    `yaml:"width" env-required:"true"`
+	Height int    `yaml:"height" env-required:"true"`
 }

@@ -6,3 +6,7 @@ logger:
 db:
   dsn: "user= dbname= password= sslmode= host= port="
 
+ui:
+  name: "burovichok"
+  width: 800
+  height: 400
