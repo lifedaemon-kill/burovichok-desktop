@@ -11,37 +11,37 @@ import (
 // кгс/см2, бар)
 // CalcBlockOne
 func CalcBlockOne(table []models.BlockOne) []models.BlockOneRich {
-	rich := make([]models.BlockOneRich, len(table))
+	// rich := make([]models.BlockOneRich, len(table))
 
-	for i, value := range table {
-		//TODO
-		rich[i].PressureVPD = 0
-	}
+	// for i, value := range table {
+	// 	//TODO
+	// 	rich[i].PressureVPD = 0
+	// }
 	return nil
 }
 
 func CalcBlockThree(table []models.BlockThree) []models.BlockThreeRich {
-	rich := make([]models.BlockThreeRich, len(table))
+	// rich := make([]models.BlockThreeRich, len(table))
 
-	for i, value := range table {
-		//TODO
-		rich[i].OilFlowRate = 0
-		rich[i].WaterFlowRate = 0
-		rich[i].GasToOilRatio = 0
-	}
+	// for i, value := range table {
+	// 	//TODO
+	// 	rich[i].OilFlowRate = 0
+	// 	rich[i].WaterFlowRate = 0
+	// 	rich[i].GasToOilRatio = 0
+	// }
 	return nil
 }
 
 func CalcBlockFive(table []models.GeneralInformation) []models.GeneralInformation {
 
-	for i, value := range table {
-		//TODO
-		table[i].TrueVerticalDepth = 0
-		table[i].TrueVerticalDepthSubSea = 0
+	// for i, value := range table {
+	// 	//TODO
+	// 	table[i].TrueVerticalDepth = 0
+	// 	table[i].TrueVerticalDepthSubSea = 0
 
-		table[i].VDPTrueVerticalDepth = 0
-		table[i].VDPTrueVerticalDepthSubSea = 0
-		table[i].DifferenceInstrumentAndVDP = 0
-	}
+	// 	table[i].VDPTrueVerticalDepth = 0
+	// 	table[i].VDPTrueVerticalDepthSubSea = 0
+	// 	table[i].DifferenceInstrumentAndVDP = 0
+	// }
 	return nil
 }
