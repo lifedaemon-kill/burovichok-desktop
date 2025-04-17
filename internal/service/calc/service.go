@@ -1,7 +1,7 @@
 package calc
 
 import (
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/models"
 )
 
 // TODO Тип вывода Рзаб на ВПД соотвутствует типу Рзаб на глубине замера
@@ -19,30 +19,25 @@ func NewService() *Service {
 	return &Service{}
 }
 
-func (s *Service) CalcBlockOne(table []models.BlockOne) []models.BlockOneRich {
-	// rich := make([]models.BlockOneRich, len(table))
-
+func (s *Service) CalcBlockOne(table []models.BlockOne) []models.BlockOne {
 	// for i, value := range table {
 	// 	//TODO
-	// 	rich[i].PressureVPD = 0
+	// 	table[i].PressureVPD = 0
 	// }
 	return nil
 }
 
-func (s *Service) CalcBlockThree(table []models.BlockThree) []models.BlockThreeRich {
-	// rich := make([]models.BlockThreeRich, len(table))
-
+func (s *Service) CalcBlockThree(table []models.BlockThree) []models.BlockThree {
 	// for i, value := range table {
 	// 	//TODO
-	// 	rich[i].OilFlowRate = 0
-	// 	rich[i].WaterFlowRate = 0
-	// 	rich[i].GasToOilRatio = 0
+	//  table[i].OilFlowRate = 0
+	// 	table[i].WaterFlowRate = 0
+	// 	table[i].GasToOilRatio = 0
 	// }
 	return nil
 }
 
 func (s *Service) CalcBlockFive(table []models.GeneralInformation) []models.GeneralInformation {
-
 	// for i, value := range table {
 	// 	//TODO
 	// 	table[i].TrueVerticalDepth = 0

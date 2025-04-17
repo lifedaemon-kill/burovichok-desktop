@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/models"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -12,7 +13,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 	appStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/storage"
 )
 
