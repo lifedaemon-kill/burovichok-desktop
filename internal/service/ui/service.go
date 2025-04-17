@@ -3,6 +3,8 @@ package ui
 import (
 	"fmt"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/models"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/sqlite"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -13,7 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
-	appStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/storage"
+	inmemory "github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
 )
 
 // ratioLayout располагает два объекта в контейнере в пропорции ratio к (1-ratio).
@@ -51,19 +53,34 @@ type Importer interface {
 
 // Service отвечает за инициализацию и запуск UI приложения.
 type Service struct {
-	app      fyne.App
-	window   fyne.Window
-	zLog     logger.Logger
-	importer Importer
-	store    appStorage.Storage
+	app                 fyne.App
+	window              fyne.Window
+	zLog                logger.Logger
+	importer            Importer
+	memBlocksStorage    inmemory.BlocksStorage
+	blocksRepository    sqlite.BlocksStorage
+	guidebookRepository sqlite.GuidebooksStorage
 }
 
 // NewService создаёт новый UI‑сервис с заголовком и размерами окна.
-func NewService(title string, width, height int, zLog logger.Logger, importer Importer, store appStorage.Storage) *Service {
+func NewService(
+	ui config.UI,
+	zLog logger.Logger,
+	importer Importer,
+	memBlock inmemory.BlocksStorage,
+	blocksRepository sqlite.BlocksStorage,
+	guidebooks sqlite.GuidebooksStorage) *Service {
 	a := app.New()
-	w := a.NewWindow(title)
-	w.Resize(fyne.NewSize(float32(width), float32(height)))
-	return &Service{app: a, window: w, zLog: zLog, importer: importer, store: store}
+	w := a.NewWindow(ui.Name)
+	w.Resize(fyne.NewSize(float32(ui.Width), float32(ui.Height)))
+	return &Service{
+		app:                 a,
+		window:              w,
+		zLog:                zLog,
+		importer:            importer,
+		memBlocksStorage:    memBlock,
+		blocksRepository:    blocksRepository,
+		guidebookRepository: guidebooks}
 }
 
 // Run строит интерфейс с тремя контролами и запускает приложение.
@@ -113,7 +130,7 @@ func (s *Service) Run() error {
 				err = parseErr // Приоритет у ошибки парсинга
 			} else {
 				count = len(data)
-				storeErr = s.store.AddBlockOneData(data) // <-- Сохраняем данные в хранилище
+				storeErr = s.memBlocksStorage.AddBlockOneData(data) // <-- Сохраняем данные в хранилище
 			}
 		case "BlockTwo":
 			data, parseErr := s.importer.ParseBlockTwoFile(path)
@@ -121,7 +138,7 @@ func (s *Service) Run() error {
 				err = parseErr
 			} else {
 				count = len(data)
-				storeErr = s.store.AddBlockTwoData(data) // <-- Сохраняем данные в хранилище
+				storeErr = s.memBlocksStorage.AddBlockTwoData(data) // <-- Сохраняем данные в хранилище
 			}
 		case "BlockThree":
 			data, parseErr := s.importer.ParseBlockThreeFile(path)
@@ -129,7 +146,7 @@ func (s *Service) Run() error {
 				err = parseErr
 			} else {
 				count = len(data)
-				storeErr = s.store.AddBlockThreeData(data) // <-- Сохраняем данные в хранилище
+				storeErr = s.memBlocksStorage.AddBlockThreeData(data) // <-- Сохраняем данные в хранилище
 			}
 		}
 		// Вычисление затраченного времени
@@ -152,11 +169,11 @@ func (s *Service) Run() error {
 		totalCount := 0
 		switch docType {
 		case "BlockOne":
-			totalCount = s.store.CountBlockOne()
+			totalCount = s.memBlocksStorage.CountBlockOne()
 		case "BlockTwo":
-			totalCount = s.store.CountBlockTwo()
+			totalCount = s.memBlocksStorage.CountBlockTwo()
 		case "BlockThree":
-			totalCount = s.store.CountBlockThree()
+			totalCount = s.memBlocksStorage.CountBlockThree()
 		}
 
 		// Информируем пользователя
@@ -175,14 +192,14 @@ func (s *Service) Run() error {
 			if !confirm {
 				return
 			}
-			err := s.store.ClearAll()
+			err := s.memBlocksStorage.ClearAll()
 			if err != nil {
 				// Маловероятно для in-memory, но на всякий случай
-				s.zLog.Errorw("Failed to clear store", "error", err)
+				s.zLog.Errorw("Failed to clear memBlocksStorage", "error", err)
 				dialog.ShowError(fmt.Errorf("ошибка при очистке хранилища: %w", err), s.window)
 				return
 			}
-			s.zLog.Infow("In-memory store cleared by user")
+			s.zLog.Infow("In-memory memBlocksStorage cleared by user")
 			dialog.ShowInformation("Хранилище очищено", "Все данные в памяти удалены.", s.window)
 
 		}, s.window)

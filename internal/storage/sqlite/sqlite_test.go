@@ -15,4 +15,6 @@ func TestOpen(t *testing.T) {
 
 	_, err = NewGuidebookRepository(db)
 	assert.Nil(t, err)
+	_, err = NewBlockRepository(db)
+	assert.Nil(t, err)
 }

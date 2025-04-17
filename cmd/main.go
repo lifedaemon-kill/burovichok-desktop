@@ -42,7 +42,7 @@ func bootstrap(ctx context.Context) error {
 	zLog.Infow("Logger and config initialized successfully")
 
 	importer := importerService.NewService()
-	blocksStore := inmemory.NewStore()
+	memBlocksStore := inmemory.NewStore()
 
 	db, err := sqlite.NewDB(conf.DB)
 	if err != nil {
@@ -58,8 +58,18 @@ func bootstrap(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "sqlite.NewGuidebookRepository")
 	}
+	blocksRepository, err := sqlite.NewBlockRepository(db)
+	if err != nil {
+		return errors.Wrap(err, "sqlite.NewBlockRepository")
+	}
 
-	ui := uiService.NewService(conf.UI.Name, conf.UI.Width, conf.UI.Height, zLog, importer, blocksStore)
+	ui := uiService.NewService(
+		conf.UI,
+		zLog,
+		importer,
+		memBlocksStore,
+		blocksRepository,
+		guidebooksRepository)
 	if err = ui.Run(); err != nil {
 		zLog.Errorw("UI service failed", "error", err)
 		return err

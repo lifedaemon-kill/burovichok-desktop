@@ -12,56 +12,6 @@ type sqlite struct {
 	DB *sqlx.DB
 }
 
-func (s sqlite) GetBlockOne() ([]models.BlockOne, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s sqlite) GetBlockTwo() ([]models.BlockTwo, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s sqlite) GetBlockThree() ([]models.BlockThree, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s sqlite) GetBlockFour() ([]models.Inclinometry, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s sqlite) GetBlockFive() ([]models.GeneralInformation, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s sqlite) AddBlockOne() (int32, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s sqlite) AddBlockTwo() (int32, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s sqlite) AddBlockThree() (int32, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s sqlite) AddBlockFour() (int32, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s sqlite) AddBlockFive() (int32, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
 func NewDB(conf config.DBConf) (*sqlx.DB, error) {
 	db, err := sqlx.Open("sqlite3", conf.DSN)
 	if err != nil {
