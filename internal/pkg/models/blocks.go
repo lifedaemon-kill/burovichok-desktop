@@ -2,37 +2,37 @@ package models
 
 import "time"
 
-// BlockOne — Блок 1. Загрузка забойного давления и температуры
+// BlockOne — Блок 1. Загрузка забойного давления и температуры
 // Поля соответствуют колонкам Excel через теги xlsx
 type BlockOne struct {
-	Timestamp        time.Time `xlsx:"Дата, время"`                     // колонка A
-	PressureDepth    float64   `xlsx:"Рзаб на глубине замера, кгс/см2"` // колонка B
-	TemperatureDepth float64   `xlsx:"Tзаб на глубине замера, °C"`      // колонка C
+	Timestamp        time.Time `xlsx:"Дата, время"`
+	PressureDepth    float64   `xlsx:"Рзаб на глубине замера, кгс/см2"`
+	TemperatureDepth float64   `xlsx:"Tзаб на глубине замера, °C"`
 	PressureAtVDP    *float64  // расчётное поле
 }
 
-// BlockTwo — Блок 2. Замеры трубного, затрубного и линейного давления
+// BlockTwo — Блок 2. Замеры трубного, затрубного и линейного давления
 type BlockTwo struct {
-	TimestampTubing  time.Time `xlsx:"Дата трубного замера, Дата, время"`   // колонка A
-	PressureTubing   float64   `xlsx:"Ртр, кгс/см2"`                        // колонка B
-	TimestampAnnulus time.Time `xlsx:"Дата затрубного замера, Дата, время"` // колонка C
-	PressureAnnulus  float64   `xlsx:"Рзтр, кгс/см2"`                       // колонка D
-	TimestampLinear  time.Time `xlsx:"Дата линейного замера, Дата, время"`  // колонка E
-	PressureLinear   float64   `xlsx:"Рлин, кгс/см2"`                       // колонка F
+	TimestampTubing  time.Time `xlsx:"Дата трубного замера, Дата, время"`
+	PressureTubing   float64   `xlsx:"Ртр, кгс/см2"`
+	TimestampAnnulus time.Time `xlsx:"Дата затрубного замера, Дата, время"`
+	PressureAnnulus  float64   `xlsx:"Рзтр, кгс/см2"`
+	TimestampLinear  time.Time `xlsx:"Дата линейного замера, Дата, время"`
+	PressureLinear   float64   `xlsx:"Рлин, кгс/см2"`
 }
 
-// BlockThree — Блок 3. Дебиты жидкости, воды, газа и расчётные поля
+// BlockThree — Блок 3. Дебиты жидкости, воды, газа и расчётные поля
 type BlockThree struct {
-	Timestamp     time.Time `xlsx:"Дата, время"`    // колонка A
-	FlowLiquid    float64   `xlsx:"Qж, м3/сут"`     // колонка B
-	WaterCut      float64   `xlsx:"W, %"`           // колонка C
-	FlowGas       float64   `xlsx:"Qг, тыс.м3/сут"` // колонка D
+	Timestamp     time.Time `xlsx:"Дата, время"`
+	FlowLiquid    float64   `xlsx:"Qж, м3/сут"`
+	WaterCut      float64   `xlsx:"W, %"`
+	FlowGas       float64   `xlsx:"Qг, тыс.м3/сут"`
 	OilFlowRate   *float64  // Qн, расчётное поле
 	WaterFlowRate *float64  // Qв, расчётное поле
 	GasOilRatio   *float64  // ГФ, расчётное поле
 }
 
-// BlockFour — Блок 4. Инклинометрия (MD, TVD, TVDSS)
+// BlockFour — Блок 4. Инклинометрия (MD, TVD, TVDSS)
 type BlockFour struct {
 	MeasuredDepth           float64 `xlsx:"Глубина по стволу, м"`    // MD
 	TrueVerticalDepth       float64 `xlsx:"Глубина по вертикали, м"` // TVD
@@ -66,4 +66,4 @@ type BlockFive struct {
 
 type ProductiveHorizon string // Б1, Б2, Б3...
 type OilField string          // Наименование месторождения
-type InstrumentType string    // Тип прибора, например, ГС-АМТС, PPS 25, КАМА-2
+type InstrumentType string    // Тип прибора, например, ГС-АМТС, PPS 25, КАМА-2
