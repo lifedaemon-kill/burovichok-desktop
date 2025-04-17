@@ -9,10 +9,7 @@ type BlockOne struct {
 	Timestamp     time.Time `xlsx:"Дата, время"`                     // колонка A
 	PressureDepth float64   `xlsx:"Рзаб на глубине замера, кгс/см2"` // колонка B
 	Temperature   float64   `xlsx:"Tзаб на глубине замера, оС"`      // колонка C
-}
-type BlockOneRich struct {
-	BlockOne
-	PressureVPD float64 //
+	PressureVPD   *float64  //
 }
 
 // BlockTwo соответствует блокам "Загрузка Ртр, Рзтр, Рлин".
@@ -33,30 +30,28 @@ type BlockTwo struct {
 
 // BlockThree соответствует блоку 3: "Данные по дебитам".
 type BlockThree struct {
-	Timestamp  time.Time `json:"timestamp"`
-	FlowLiquid float64   `json:"flow_liquid"` // Qж, м3/сут
-	WaterCut   float64   `json:"water_cut"`   // W, %
-	FlowGas    float64   `json:"flow_gas"`    // Qг, тыс. м3/сут
-}
-type BlockThreeRich struct {
-	BlockThree
-	OilFlowRate   float64 // Qн, m/сут Дебит нефти
-	WaterFlowRate float64 // Qв, m/сут Дебит воды
-	GasToOilRatio float64 // ГФ, м3/m Газовый фактор
+	Timestamp     time.Time `json:"timestamp"`
+	FlowLiquid    float64   `json:"flow_liquid"` // Qж, м3/сут
+	WaterCut      float64   `json:"water_cut"`   // W, %
+	FlowGas       float64   `json:"flow_gas"`    // Qг, тыс. м3/сут
+	OilFlowRate   *float64  // Qн, m/сут Дебит нефти
+	WaterFlowRate *float64  // Qв, m/сут Дебит воды
+	GasToOilRatio *float64  // ГФ, м3/m Газовый фактор
+
 }
 
 // Inclinometry BlockFour Инклинометрия
 type Inclinometry struct {
-	MeasuredDepth           float64 // Метры, Глубина спуска прибора по стволу (MD)
-	TrueVerticalDepth       float64 // Метры, Глубина спуска прибора по вертикали (TVD)
-	TrueVerticalDepthSubSea float64 // Метры, Абсолютная отметка (TVDSS)
+	MeasuredDepth           float64  // Метры, Глубина спуска прибора по стволу (MD)
+	TrueVerticalDepth       *float64 // Метры, Глубина спуска прибора по вертикали (TVD)
+	TrueVerticalDepthSubSea *float64 // Метры, Абсолютная отметка (TVDSS)
 }
 
 //ИНФОРМАЦИОННЫЙ БЛОК
 
 // GeneralInformation BlockFive Общие сведения об исследовании
 type GeneralInformation struct {
-	FieldName                            // Месторождение
+	OilPlaces                            // Месторождение
 	WellNumber                 int       // № скважины
 	ClusterSiteNumber          int       // № кустовой площадки
 	ProductiveHorizon                    // Продуктивный горизонт, пласт
@@ -66,26 +61,23 @@ type GeneralInformation struct {
 	InstrumentNumber           int       // № прибора
 	Inclinometry                         // Инклинометрия
 	VDPMeasuredDepth           float64   // Метры, Верхние дыры перфорации по стволу (MD)
-	VDPTrueVerticalDepth       float64   // Метры, Верхние дыры перфорации по вертикали (TVD)
-	VDPTrueVerticalDepthSubSea float64   // Метры, Верхние дыры перфорации (ВДП) абсолютная отметка (TVDSS)
-	DifferenceInstrumentAndVDP float64   // Метры, Разница между прибором и ВДП по абсолютным отметкам, м
+	VDPTrueVerticalDepth       *float64  // Метры, Верхние дыры перфорации по вертикали (TVD)
+	VDPTrueVerticalDepthSubSea *float64  // Метры, Верхние дыры перфорации (ВДП) абсолютная отметка (TVDSS)
+	DifferenceInstrumentAndVDP *float64  // Метры, Разница между прибором и ВДП по абсолютным отметкам, м
 	DensityOil                 float64   // кгм/м3, Плотность для пересчета дебита нефти
 	DensityLiquidStopped       float64   // кгм/м3, Плотность жидкости для пересчета давления на ВДП в остановленной скважине
 	DensityLiquidWorking       float64   // кгм/м3, Плотность жидкости для пересчета давления на ВДП в работающей скважине
-	PressureDifferenceStopped  float64   // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в остановленной скважине
-	PressureDifferenceWorking  float64   // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в работающей скважине
+	PressureDifferenceStopped  *float64  // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в остановленной скважине
+	PressureDifferenceWorking  *float64  // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в работающей скважине
 }
 
 //СПРАВОЧНИКИ
 
 // ProductiveHorizon BlockSix Продуктивный горизонт, пласт
-// Б1 Б2 Б3...
-type ProductiveHorizon string
+type ProductiveHorizon string // Б1 Б2 Б3...
 
-// FieldName BlockSeven Наименование месторождений
-// Куюмбинское Юрубчено-Тохомское Ванкорское
-type FieldName string
+// OilPlaces BlockSeven Наименование месторождений
+type OilPlaces string // Куюмбинское Юрубчено-Тохомское Ванкорское
 
 // InstrumentType BlockEight Тип приборов для замеров давления и температуры
-// ГС-АМТС PPS 25 КАМА-2
-type InstrumentType string
+type InstrumentType string // ГС-АМТС PPS 25 КАМА-2
