@@ -20,20 +20,24 @@ jobs:
           go-version: '1.23.5'
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y \
-          libgl1-mesa-dev \
-          libglu1-mesa-dev \
-          libx11-dev \
-          libxcursor-dev \
-          libxrandr-dev \
-          libxinerama-dev \
-          libxi-dev \
-          libharfbuzz-dev \
-          libfreetype6-dev \
-          libpango1.0-dev \
-          libgtk-3-dev \
-          build-essential \
-          pkg-config
+        run: |
+          sudo add-apt-repository universe
+          sudo add-apt-repository multiverse
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            libx11-dev \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxi-dev \
+            libharfbuzz-dev \
+            libfreetype6-dev \
+            libpango1.0-dev \
+            libgtk-3-dev \
+            build-essential \
+            pkg-config
 
       - name: Install dependencies
         run: go mod tidy
