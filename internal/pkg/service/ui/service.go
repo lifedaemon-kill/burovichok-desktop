@@ -13,6 +13,7 @@ import (
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
+	appStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/storage"
 )
 
 // ratioLayout располагает два объекта в контейнере в пропорции ratio к (1-ratio).
@@ -54,14 +55,15 @@ type Service struct {
 	window   fyne.Window
 	zLog     logger.Logger
 	importer Importer
+	store    appStorage.Storage
 }
 
 // NewService создаёт новый UI‑сервис с заголовком и размерами окна.
-func NewService(title string, width, height int, zLog logger.Logger, importer Importer) *Service {
+func NewService(title string, width, height int, zLog logger.Logger, importer Importer, store appStorage.Storage) *Service {
 	a := app.New()
 	w := a.NewWindow(title)
 	w.Resize(fyne.NewSize(float32(width), float32(height)))
-	return &Service{app: a, window: w, zLog: zLog, importer: importer}
+	return &Service{app: a, window: w, zLog: zLog, importer: importer, store: store}
 }
 
 // Run строит интерфейс с тремя контролами и запускает приложение.
@@ -102,34 +104,88 @@ func (s *Service) Run() error {
 		s.zLog.Infow("Start import", "path", path, "type", docType)
 		var count int
 		var err error
+		var storeErr error
 
 		switch docType {
 		case "BlockOne":
-			data, e := s.importer.ParseBlockOneFile(path)
-			err, count = e, len(data)
+			data, parseErr := s.importer.ParseBlockOneFile(path)
+			if parseErr != nil {
+				err = parseErr // Приоритет у ошибки парсинга
+			} else {
+				count = len(data)
+				storeErr = s.store.AddBlockOneData(data) // <-- Сохраняем данные в хранилище
+			}
 		case "BlockTwo":
-			data, e := s.importer.ParseBlockTwoFile(path)
-			err, count = e, len(data)
+			data, parseErr := s.importer.ParseBlockTwoFile(path)
+			if parseErr != nil {
+				err = parseErr
+			} else {
+				count = len(data)
+				storeErr = s.store.AddBlockTwoData(data) // <-- Сохраняем данные в хранилище
+			}
 		case "BlockThree":
-			data, e := s.importer.ParseBlockThreeFile(path)
-			err, count = e, len(data)
+			data, parseErr := s.importer.ParseBlockThreeFile(path)
+			if parseErr != nil {
+				err = parseErr
+			} else {
+				count = len(data)
+				storeErr = s.store.AddBlockThreeData(data) // <-- Сохраняем данные в хранилище
+			}
 		}
+		// Вычисление затраченного времени
+		elapsed := time.Since(start)
 
 		if err != nil {
-			s.zLog.Errorw("Import failed", "error", err)
+			s.zLog.Errorw("Import failed (parsing)", "error", err, "duration", elapsed)
 			dialog.ShowError(err, s.window)
 			return
 		}
 
-		// Вычисление затраченного времени
-		elapsed := time.Since(start)
+		if storeErr != nil {
+			// Ошибка сохранения - это скорее внутренняя проблема
+			s.zLog.Errorw("Import failed (storing)", "error", storeErr, "duration", elapsed)
+			dialog.ShowError(fmt.Errorf("внутренняя ошибка при сохранении данных: %w", storeErr), s.window)
+			return
+		}
+
+		// Получаем текущее общее количество записей в хранилище (опционально, для информации)
+		totalCount := 0
+		switch docType {
+		case "BlockOne":
+			totalCount = s.store.CountBlockOne()
+		case "BlockTwo":
+			totalCount = s.store.CountBlockTwo()
+		case "BlockThree":
+			totalCount = s.store.CountBlockThree()
+		}
 
 		// Информируем пользователя
+		s.zLog.Infow("Import successful", "type", docType, "count", count, "total_in_store", totalCount, "duration", elapsed)
 		dialog.ShowInformation(
 			"Готово",
-			fmt.Sprintf("Импортировано %d записей за %s", count, elapsed),
+			fmt.Sprintf("Импортировано %d записей типа '%s'.\nВсего в памяти: %d.\nВремя: %s", count, docType, totalCount, elapsed.Round(time.Millisecond)),
 			s.window,
 		)
+	})
+
+	// <-- НОВАЯ КНОПКА: Очистка хранилища -->
+	clearBtn := widget.NewButton("Очистить хранилище", func() {
+		// Запрос подтверждения
+		dialog.ShowConfirm("Подтверждение", "Вы уверены, что хотите удалить все загруженные данные из памяти?", func(confirm bool) {
+			if !confirm {
+				return
+			}
+			err := s.store.ClearAll()
+			if err != nil {
+				// Маловероятно для in-memory, но на всякий случай
+				s.zLog.Errorw("Failed to clear store", "error", err)
+				dialog.ShowError(fmt.Errorf("ошибка при очистке хранилища: %w", err), s.window)
+				return
+			}
+			s.zLog.Infow("In-memory store cleared by user")
+			dialog.ShowInformation("Хранилище очищено", "Все данные в памяти удалены.", s.window)
+
+		}, s.window)
 	})
 
 	// Компоновка: 70% для поля и 30% для кнопки
@@ -140,9 +196,12 @@ func (s *Service) Run() error {
 		head,
 		typeSelect,
 		importBtn,
+		widget.NewSeparator(), // <-- Разделитель для красоты
+		clearBtn,              // <-- Добавляем кнопку очистки
 	)
 
 	s.window.SetContent(content)
 	s.window.ShowAndRun()
+	s.zLog.Infow("UI service stopped") // Это сообщение появится после закрытия окна
 	return nil
 }
