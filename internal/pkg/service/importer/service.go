@@ -66,9 +66,9 @@ func (s *Service) ParseBlockOneFile(path string) ([]models.BlockOne, error) {
 		}
 
 		result = append(result, models.BlockOne{
-			Timestamp:   ts,
-			Pressure:    pres,
-			Temperature: temp,
+			Timestamp:     ts,
+			PressureDepth: pres,
+			Temperature:   temp,
 		})
 	}
 	return result, nil
