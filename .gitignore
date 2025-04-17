@@ -24,4 +24,4 @@ go.work.sum
 
 .idea
 
-config/values_local.yaml
+./config/values_local.yaml
