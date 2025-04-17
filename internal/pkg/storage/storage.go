@@ -5,14 +5,15 @@ import "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 // Storage определяет интерфейс для взаимодействия с хранилищем данных.
 type Storage interface {
 	// Методы для добавления данных (принимают срезы, как возвращает парсер)
-	AddBlockOneData(data []models.BlockOne) error
-	AddBlockTwoData(data []models.BlockTwo) error
-	AddBlockThreeData(data []models.BlockThree) error
+	AddBlockOneData(data []models.TableOne) error
+	AddBlockTwoData(data []models.TableTwo) error
+	AddBlockThreeData(data []models.TableThree) error
+	AddBlockFourData(data []models.Inclinometry) error
 
 	// Методы для получения всех данных (возвращают копии для безопасности)
-	GetAllBlockOneData() ([]models.BlockOne, error)
-	GetAllBlockTwoData() ([]models.BlockTwo, error)
-	GetAllBlockThreeData() ([]models.BlockThree, error)
+	GetAllBlockOneData() ([]models.TableOne, error)
+	GetAllBlockTwoData() ([]models.TableTwo, error)
+	GetAllBlockThreeData() ([]models.TableThree, error)
 
 	// Метод для очистки всего хранилища
 	ClearAll() error

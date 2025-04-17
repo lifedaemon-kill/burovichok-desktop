@@ -1,127 +1,133 @@
 package importer
 
 import (
-	"math"
+	"os"
 	"strconv"
 	"time"
 
-	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/cockroachdb/errors"
+	"github.com/thedatashed/xlsxreader"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
 
-// Service отвечает за логику импорта данных из Excel.
-type Service struct{}
-
-// NewService создает новый экземпляр сервис импорта.
-func NewService() *Service {
-	return &Service{}
+type calcService interface {
+	CalcTableOne(rec models.TableOne, cfg models.OperationConfig) models.TableOne
 }
 
-// ParseBlockOneFile читает XLSX-файл и возвращает срез записей.
-func (s *Service) ParseBlockOneFile(path string) ([]models.BlockOne, error) {
-	f, err := excelize.OpenFile(path)
+type converterService interface {
+	ParseFlexibleTime(raw string) (time.Time, error)
+}
+
+// Service отвечает за логику импорта данных из Excel.
+type Service struct {
+	calc      calcService
+	converter converterService
+}
+
+// NewService создает новый экземпляр сервис импорта.
+func NewService(calc calcService, converter converterService) *Service {
+	return &Service{
+		calc:      calc,
+		converter: converter,
+	}
+}
+
+// ParseBlockOneFile читает XLSX‑файл через xlsxreader и возвращает []TableOne.
+func (s *Service) ParseBlockOneFile(path string, cfg models.OperationConfig) ([]models.TableOne, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "open file")
+		return nil, errors.Wrapf(err, "read file %s", path)
+	}
+	xl, err := xlsxreader.NewReader(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "xlsxreader.NewReader")
 	}
 
-	const sheet = "Инструментальный замер"
-	rows := f.GetRows(sheet)
-
-	var result []models.BlockOne
-	for i, row := range rows[1:] {
-		if len(row) < 3 {
+	var out []models.TableOne
+	for row := range xl.ReadRows(xl.Sheets[0]) {
+		if row.Index == 1 {
 			continue
 		}
-
-		// Обрабатываем Timestamp: может быть числом или строкой
-		tsRaw := row[0]
-		var ts time.Time
-		if num, errPars := strconv.ParseFloat(tsRaw, 64); errPars == nil {
-			// Преобразуем serial date в time.Time
-			ts, errPars = excelDateToTime(num, false)
-			if errPars != nil {
-				return nil, errors.Wrapf(errPars, "convert excel date on row %d", i+2)
-			}
-		} else {
-			// Ожидаем формат DD/MM/YYYY HH:MM:SS
-			//TODO должно быть 5 различных форматирований времени
-			ts, err = time.Parse("02/01/2006 15:04:05", tsRaw)
-			if err != nil {
-				return nil, errors.Wrapf(err, "parse timestamp on row %d", i+2)
-			}
+		cells := row.Cells
+		if len(cells) < 3 {
+			continue
+		}
+		ts, err := s.converter.ParseFlexibleTime(cells[0].Value)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse timestamp block1 row %d", row.Index)
+		}
+		pres, err := strconv.ParseFloat(cells[1].Value, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse pressure block1 row %d", row.Index)
+		}
+		temp, err := strconv.ParseFloat(cells[2].Value, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse temperature block1 row %d", row.Index)
 		}
 
-		// Парсим давление
-		pres, errParse := strconv.ParseFloat(row[1], 64)
-		if errParse != nil {
-			return nil, errors.Wrapf(errParse, "parse pressure on row %d", i+2)
-		}
-
-		// Парсим температуру
-		temp, errParse := strconv.ParseFloat(row[2], 64)
-		if errParse != nil {
-			return nil, errors.Wrapf(errParse, "parse temperature on row %d", i+2)
-		}
-
-		result = append(result, models.BlockOne{
+		rec := models.TableOne{
 			Timestamp:     ts,
 			PressureDepth: pres,
 			Temperature:   temp,
-		})
+		}
+
+		// 4) автоматический расчёт ВДП
+		rec = s.calc.CalcTableOne(rec, cfg)
+		out = append(out, rec)
 	}
-	return result, nil
+	return out, nil
 }
 
-// ParseBlockTwoFile читает XLSX с листом «Инструментальный замер» (блок 2)
-// и возвращает срез BlockTwo.
-func (s *Service) ParseBlockTwoFile(path string) ([]models.BlockTwo, error) {
-	f, err := excelize.OpenFile(path)
+// ParseBlockTwoFile читает XLSX‑файл и возвращает []TableTwo.
+func (s *Service) ParseBlockTwoFile(path string) ([]models.TableTwo, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "open file")
+		return nil, errors.Wrapf(err, "read file %s", path)
+	}
+	xl, err := xlsxreader.NewReader(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "xlsxreader.NewReader")
 	}
 
-	const sheet = "Инструментальный замер"
-	rows := f.GetRows(sheet)
-
-	var out []models.BlockTwo
-	// Пропускаем первые две строки заголовков
-	for i, row := range rows[2:] {
-		if len(row) < 6 {
+	var out []models.TableTwo
+	for row := range xl.ReadRows(xl.Sheets[0]) {
+		if row.Index <= 2 {
 			continue
 		}
-		// A,B: трубное давление
-		tsTub, err := parseExcelDateOrString(row[0])
-		if err != nil {
-			return nil, errors.Wrapf(err, "parse tubing timestamp on row %d", i+3)
+		cells := row.Cells
+		if len(cells) < 6 {
+			continue
 		}
-		presTub, err := strconv.ParseFloat(row[1], 64)
+		// Tubing pressure
+		tsTub, err := s.converter.ParseFlexibleTime(cells[0].Value)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parse tubing pressure on row %d", i+3)
+			return nil, errors.Wrapf(err, "parse tubing timestamp row %d", row.Index)
+		}
+		presTub, err := strconv.ParseFloat(cells[1].Value, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse tubing pressure row %d", row.Index)
+		}
+		// Annulus pressure
+		tsAnn, err := s.converter.ParseFlexibleTime(cells[2].Value)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse annulus timestamp row %d", row.Index)
+		}
+		presAnn, err := strconv.ParseFloat(cells[3].Value, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse annulus pressure row %d", row.Index)
+		}
+		// Linear pressure
+		tsLin, err := s.converter.ParseFlexibleTime(cells[4].Value)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse linear timestamp row %d", row.Index)
+		}
+		presLin, err := strconv.ParseFloat(cells[5].Value, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse linear pressure row %d", row.Index)
 		}
 
-		// C,D: затрубное давление
-		tsAnn, err := parseExcelDateOrString(row[2])
-		if err != nil {
-			return nil, errors.Wrapf(err, "parse annulus timestamp on row %d", i+3)
-		}
-		presAnn, err := strconv.ParseFloat(row[3], 64)
-		if err != nil {
-			return nil, errors.Wrapf(err, "parse annulus pressure on row %d", i+3)
-		}
-
-		// E,F: линейное давление
-		tsLin, err := parseExcelDateOrString(row[4])
-		if err != nil {
-			return nil, errors.Wrapf(err, "parse linear timestamp on row %d", i+3)
-		}
-		presLin, err := strconv.ParseFloat(row[5], 64)
-		if err != nil {
-			return nil, errors.Wrapf(err, "parse linear pressure on row %d", i+3)
-		}
-
-		out = append(out, models.BlockTwo{
+		out = append(out, models.TableTwo{
 			TimestampTubing:  tsTub,
 			PressureTubing:   presTub,
 			TimestampAnnulus: tsAnn,
@@ -133,43 +139,45 @@ func (s *Service) ParseBlockTwoFile(path string) ([]models.BlockTwo, error) {
 	return out, nil
 }
 
-// ParseBlockThreeFile читает дебиты: дата/время, Qж, W, Qг.
-func (s *Service) ParseBlockThreeFile(path string) ([]models.BlockThree, error) {
-	f, err := excelize.OpenFile(path)
+// ParseBlockThreeFile читает XLSX‑файл и возвращает []TableThree.
+func (s *Service) ParseBlockThreeFile(path string) ([]models.TableThree, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "open file")
+		return nil, errors.Wrapf(err, "read file %s", path)
+	}
+	xl, err := xlsxreader.NewReader(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "xlsxreader.NewReader")
 	}
 
-	const sheet = "Инструментальный замер"
-	rows := f.GetRows(sheet)
-
-	var out []models.BlockThree
-	for i, row := range rows[1:] {
-		if len(row) < 4 {
+	var out []models.TableThree
+	for row := range xl.ReadRows(xl.Sheets[0]) {
+		// пропускаем заголовок
+		if row.Index == 1 {
 			continue
 		}
-		// Время
-		ts, err := parseExcelDateOrString(row[0])
-		if err != nil {
-			return nil, errors.Wrapf(err, "parse timestamp on row %d", i+2)
+		cells := row.Cells
+		if len(cells) < 4 {
+			continue
 		}
-		// Qж
-		flowL, err := strconv.ParseFloat(row[1], 64)
+		ts, err := s.converter.ParseFlexibleTime(cells[0].Value)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parse flow liquid on row %d", i+2)
+			return nil, errors.Wrapf(err, "parse timestamp block3 row %d", row.Index)
 		}
-		// W
-		wc, err := strconv.ParseFloat(row[2], 64)
+		flowL, err := strconv.ParseFloat(cells[1].Value, 64)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parse water cut on row %d", i+2)
+			return nil, errors.Wrapf(err, "parse flow liquid row %d", row.Index)
 		}
-		// Qг
-		flowG, err := strconv.ParseFloat(row[3], 64)
+		wc, err := strconv.ParseFloat(cells[2].Value, 64)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parse flow gas on row %d", i+2)
+			return nil, errors.Wrapf(err, "parse water cut row %d", row.Index)
+		}
+		flowG, err := strconv.ParseFloat(cells[3].Value, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse flow gas row %d", row.Index)
 		}
 
-		out = append(out, models.BlockThree{
+		out = append(out, models.TableThree{
 			Timestamp:  ts,
 			FlowLiquid: flowL,
 			WaterCut:   wc,
@@ -179,54 +187,60 @@ func (s *Service) ParseBlockThreeFile(path string) ([]models.BlockThree, error) 
 	return out, nil
 }
 
-// parseExcelDateOrString умеет разобрать и serial‑дату Excel (число) и строковый формат DD/MM/YYYY HH:MM:SS.
-func parseExcelDateOrString(raw string) (time.Time, error) {
-	// попытаемся сначала как число
-	if num, err := strconv.ParseFloat(raw, 64); err == nil {
-		return excelSerialToTime(num, false)
-	}
-	// иначе ожидаем строку вида “09/11/2024 17:21:21”
-	return time.Parse("02/01/2006 15:04:05", raw)
-}
-
-// excelSerialToTime конвертирует serial date Excel в time.Time.
-func excelSerialToTime(serial float64, date1904 bool) (time.Time, error) {
-	var epoch time.Time
-	if date1904 {
-		epoch = time.Date(1904, 1, 1, 0, 0, 0, 0, time.UTC)
-	} else {
-		epoch = time.Date(1899, 12, 30, 0, 0, 0, 0, time.UTC)
-	}
-	days := math.Floor(serial)
-	if !date1904 && days >= 61 {
-		days--
-	}
-	frac := serial - math.Floor(serial)
-	d := epoch.Add(time.Duration(days) * 24 * time.Hour)
-	return d.Add(time.Duration(frac * 24 * float64(time.Hour))), nil
-}
-
-// excelDateToTime конвертирует Excel serial date в time.Time.
-// date1904=false означает систему 1900 (Windows Excel).
-func excelDateToTime(serial float64, date1904 bool) (time.Time, error) {
-	// Опорная дата
-	var epoch time.Time
-	if date1904 {
-		epoch = time.Date(1904, 1, 1, 0, 0, 0, 0, time.UTC)
-	} else {
-		epoch = time.Date(1899, 12, 30, 0, 0, 0, 0, time.UTC)
+// ParseBlockFourFile читает XLSX‑файл и возвращает []Inclinometry.
+func (s *Service) ParseBlockFourFile(path string) ([]models.Inclinometry, error) {
+	// 1) читаем файл
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "read file %s", path)
 	}
 
-	// Коррекция для ложного 29 февраля 1900
-	days := math.Floor(serial)
-	if !date1904 && days >= 61 {
-		days -= 1
+	// 2) создаём ридер xlsxreader
+	xl, err := xlsxreader.NewReader(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "xlsxreader.NewReader")
 	}
-	// Целая и дробная часть
-	frac := serial - math.Floor(serial)
 
-	// Добавляем дни и долю дня
-	d := epoch.Add(time.Duration(days) * 24 * time.Hour)
-	t := d.Add(time.Duration(frac * 24 * float64(time.Hour)))
-	return t, nil
+	var out []models.Inclinometry
+
+	// 3) перебираем все строки на первом листе
+	for row := range xl.ReadRows(xl.Sheets[0]) {
+		// пропускаем заголовки и строку с единицами (Excel: строки 1–4)
+		if row.Index <= 4 {
+			continue
+		}
+
+		cells := row.Cells
+		if len(cells) < 3 {
+			continue
+		}
+
+		// 4) парсим MeasuredDepth (колонка A / cells[0])
+		md, err := strconv.ParseFloat(cells[0].Value, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse MeasuredDepth block4 row %d", row.Index)
+		}
+
+		// 5) парсим TrueVerticalDepth (колонка I / cells[1])
+		tvd, err := strconv.ParseFloat(cells[1].Value, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse TrueVerticalDepth block4 row %d", row.Index)
+		}
+
+		// 6) парсим TrueVerticalDepthSubSea (колонка J / cells[2])
+		tvdss, err := strconv.ParseFloat(cells[2].Value, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse TrueVerticalDepthSubSea block4 row %d", row.Index)
+		}
+
+		// 7) собираем запись и добавляем в выходной срез
+		rec := models.Inclinometry{
+			MeasuredDepth:           md,
+			TrueVerticalDepth:       tvd,
+			TrueVerticalDepthSubSea: tvdss,
+		}
+		out = append(out, rec)
+	}
+
+	return out, nil
 }

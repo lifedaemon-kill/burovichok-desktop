@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -16,63 +18,73 @@ import (
 	appStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/storage"
 )
 
-// ratioLayout располагает два объекта в контейнере в пропорции ratio к (1-ratio).
-type ratioLayout struct{ ratio float32 }
-
-// Layout вычисляет размеры и позиции дочерних элементов.
-func (r *ratioLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	if len(objects) < 2 {
-		return
-	}
-	firstWidth := size.Width * r.ratio
-	objects[0].Resize(fyne.NewSize(firstWidth, size.Height))
-	objects[1].Resize(fyne.NewSize(size.Width-firstWidth, size.Height))
-	objects[1].Move(fyne.NewPos(firstWidth, 0))
+// importer умеет парсить три типа блоков.
+type importer interface {
+	ParseBlockOneFile(path string, cfg models.OperationConfig) ([]models.TableOne, error)
+	ParseBlockTwoFile(path string) ([]models.TableTwo, error)
+	ParseBlockThreeFile(path string) ([]models.TableThree, error)
+	ParseBlockFourFile(path string) ([]models.Inclinometry, error)
 }
 
-// MinSize возвращает минимальный размер контейнера по высоте самого "высокого" элемента.
-func (r *ratioLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
-	var height float32
-	for _, o := range objects {
-		h := o.MinSize().Height
-		if h > height {
-			height = h
-		}
-	}
-	return fyne.NewSize(0, height)
-}
-
-// Importer умеет парсить три типа блоков.
-type Importer interface {
-	ParseBlockOneFile(path string) ([]models.BlockOne, error)
-	ParseBlockTwoFile(path string) ([]models.BlockTwo, error)
-	ParseBlockThreeFile(path string) ([]models.BlockThree, error)
+type converterService interface {
+	ParseFlexibleTime(raw string) (time.Time, error)
 }
 
 // Service отвечает за инициализацию и запуск UI приложения.
 type Service struct {
-	app      fyne.App
-	window   fyne.Window
-	zLog     logger.Logger
-	importer Importer
-	store    appStorage.Storage
+	app       fyne.App
+	window    fyne.Window
+	zLog      logger.Logger
+	importer  importer
+	store     appStorage.Storage
+	converter converterService
 }
 
-// NewService создаёт новый UI‑сервис с заголовком и размерами окна.
-func NewService(title string, width, height int, zLog logger.Logger, importer Importer, store appStorage.Storage) *Service {
+// NewService создаёт новый UI‑сервис.
+func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService, store appStorage.Storage) *Service {
 	a := app.New()
-	w := a.NewWindow(title)
-	w.Resize(fyne.NewSize(float32(width), float32(height)))
-	return &Service{app: a, window: w, zLog: zLog, importer: importer, store: store}
+	win := a.NewWindow(title)
+	win.Resize(fyne.NewSize(float32(w), float32(h)))
+	return &Service{
+		app:       a,
+		window:    win,
+		zLog:      zLog,
+		importer:  imp,
+		store:     store,
+		converter: converter,
+	}
 }
 
-// Run строит интерфейс с тремя контролами и запускает приложение.
+// ratioLayout располагает два объекта в контейнере в пропорции ratio к (1-ratio).
+type ratioLayout struct{ ratio float32 }
+
+func (r *ratioLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	if len(objects) < 2 {
+		return
+	}
+	firstW := size.Width * r.ratio
+	objects[0].Resize(fyne.NewSize(firstW, size.Height))
+	objects[1].Resize(fyne.NewSize(size.Width-firstW, size.Height))
+	objects[1].Move(fyne.NewPos(firstW, 0))
+}
+
+func (r *ratioLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	var h float32
+	for _, o := range objects {
+		if hh := o.MinSize().Height; hh > h {
+			h = hh
+		}
+	}
+	return fyne.NewSize(0, h)
+}
+
+// Run строит интерфейс и запускает приложение.
 func (s *Service) Run() error {
-	// Поле и кнопка выбора файла
+	// 1) поле выбора файла + кнопка
 	pathEntry := widget.NewEntry()
-	pathEntry.SetPlaceHolder("Файл не выбран")
+	pathEntry.PlaceHolder = "Файл не выбран"
 	chooseBtn := widget.NewButton("Выбрать файл", func() {
-		dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
+		d := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 			if r == nil || err != nil {
 				dialog.ShowError(err, s.window)
 				return
@@ -80,128 +92,253 @@ func (s *Service) Run() error {
 			defer r.Close()
 			pathEntry.SetText(r.URI().Path())
 		}, s.window)
-		dlg.SetFilter(storage.NewExtensionFileFilter([]string{".xlsx"}))
-		dlg.Show()
+		d.SetFilter(storage.NewExtensionFileFilter([]string{".xlsx"}))
+		d.Show()
 	})
 
-	// Выбор типа документа
-	docTypes := []string{"BlockOne", "BlockTwo", "BlockThree"}
-	typeSelect := widget.NewSelect(docTypes, func(string) {})
+	// 2) выбор типа документа
+	docTypes := []string{"TableOne", "TableTwo", "TableThree", "TableFour"}
+	typeSelect := widget.NewSelect(docTypes, nil)
 	typeSelect.PlaceHolder = "Выберите тип документа"
 
-	// Import кнопка
+	// 3) кнопка Import
 	importBtn := widget.NewButton("Import", func() {
 		path := pathEntry.Text
-		docType := typeSelect.Selected
-		if path == "" || docType == "" {
+		typ := typeSelect.Selected
+		if path == "" || typ == "" {
 			dialog.ShowInformation("Ошибка", "Сначала выберите файл и тип документа", s.window)
 			return
 		}
 
-		// Засекаем время
-		start := time.Now()
-
-		s.zLog.Infow("Start import", "path", path, "type", docType)
-		var count int
-		var err error
-		var storeErr error
-
-		switch docType {
-		case "BlockOne":
-			data, parseErr := s.importer.ParseBlockOneFile(path)
-			if parseErr != nil {
-				err = parseErr // Приоритет у ошибки парсинга
-			} else {
-				count = len(data)
-				storeErr = s.store.AddBlockOneData(data) // <-- Сохраняем данные в хранилище
-			}
-		case "BlockTwo":
-			data, parseErr := s.importer.ParseBlockTwoFile(path)
-			if parseErr != nil {
-				err = parseErr
-			} else {
-				count = len(data)
-				storeErr = s.store.AddBlockTwoData(data) // <-- Сохраняем данные в хранилище
-			}
-		case "BlockThree":
-			data, parseErr := s.importer.ParseBlockThreeFile(path)
-			if parseErr != nil {
-				err = parseErr
-			} else {
-				count = len(data)
-				storeErr = s.store.AddBlockThreeData(data) // <-- Сохраняем данные в хранилище
-			}
+		// если TableOne — сначала собираем параметры
+		if typ == "TableOne" {
+			showTableOneForm(s, path)
+		} else {
+			// сразу импортим во всех остальных случаях
+			go s.doGenericImport(path, typ)
 		}
-		// Вычисление затраченного времени
-		elapsed := time.Since(start)
-
-		if err != nil {
-			s.zLog.Errorw("Import failed (parsing)", "error", err, "duration", elapsed)
-			dialog.ShowError(err, s.window)
-			return
-		}
-
-		if storeErr != nil {
-			// Ошибка сохранения - это скорее внутренняя проблема
-			s.zLog.Errorw("Import failed (storing)", "error", storeErr, "duration", elapsed)
-			dialog.ShowError(fmt.Errorf("внутренняя ошибка при сохранении данных: %w", storeErr), s.window)
-			return
-		}
-
-		// Получаем текущее общее количество записей в хранилище (опционально, для информации)
-		totalCount := 0
-		switch docType {
-		case "BlockOne":
-			totalCount = s.store.CountBlockOne()
-		case "BlockTwo":
-			totalCount = s.store.CountBlockTwo()
-		case "BlockThree":
-			totalCount = s.store.CountBlockThree()
-		}
-
-		// Информируем пользователя
-		s.zLog.Infow("Import successful", "type", docType, "count", count, "total_in_store", totalCount, "duration", elapsed)
-		dialog.ShowInformation(
-			"Готово",
-			fmt.Sprintf("Импортировано %d записей типа '%s'.\nВсего в памяти: %d.\nВремя: %s", count, docType, totalCount, elapsed.Round(time.Millisecond)),
-			s.window,
-		)
 	})
 
-	// <-- НОВАЯ КНОПКА: Очистка хранилища -->
+	// 4) кнопка очистки хранилища
 	clearBtn := widget.NewButton("Очистить хранилище", func() {
-		// Запрос подтверждения
-		dialog.ShowConfirm("Подтверждение", "Вы уверены, что хотите удалить все загруженные данные из памяти?", func(confirm bool) {
-			if !confirm {
+		dialog.ShowConfirm("Подтверждение", "Удалить все данные?", func(ok bool) {
+			if !ok {
 				return
 			}
-			err := s.store.ClearAll()
-			if err != nil {
-				// Маловероятно для in-memory, но на всякий случай
-				s.zLog.Errorw("Failed to clear store", "error", err)
-				dialog.ShowError(fmt.Errorf("ошибка при очистке хранилища: %w", err), s.window)
+			if err := s.store.ClearAll(); err != nil {
+				s.zLog.Errorw("Clear failed", "error", err)
+				dialog.ShowError(fmt.Errorf("ошибка очистки: %w", err), s.window)
 				return
 			}
-			s.zLog.Infow("In-memory store cleared by user")
-			dialog.ShowInformation("Хранилище очищено", "Все данные в памяти удалены.", s.window)
-
+			dialog.ShowInformation("Очищено", "Данные удалены", s.window)
 		}, s.window)
 	})
 
-	// Компоновка: 70% для поля и 30% для кнопки
-	head := container.New(&ratioLayout{ratio: 0.7}, pathEntry, chooseBtn)
-
-	// Собираем всё вместе
+	// компоновка
+	header := container.New(&ratioLayout{ratio: 0.7}, pathEntry, chooseBtn)
 	content := container.NewVBox(
-		head,
+		header,
 		typeSelect,
 		importBtn,
-		widget.NewSeparator(), // <-- Разделитель для красоты
-		clearBtn,              // <-- Добавляем кнопку очистки
+		widget.NewSeparator(),
+		clearBtn,
 	)
 
 	s.window.SetContent(content)
 	s.window.ShowAndRun()
-	s.zLog.Infow("UI service stopped") // Это сообщение появится после закрытия окна
 	return nil
+}
+
+// showTableOneForm показывает форму параметров гидростатики и по клику "Ок" запускает импорт.
+func showTableOneForm(s *Service, path string) {
+	// поля формы
+	ws := widget.NewEntry() // Работа: c
+	we := widget.NewEntry() // Работа: по
+	is := widget.NewEntry() // Простой: c (необязательно)
+	ie := widget.NewEntry() // Простой: по (необязательно)
+	wr := widget.NewEntry() // Плотность (работа)
+	ir := widget.NewEntry() // Плотность (простои) (необязательно)
+	dh := widget.NewEntry() // Δh (м)
+	unit := widget.NewSelect([]string{"kgf/cm2", "bar", "atm"}, nil)
+
+	ws.PlaceHolder = "YYYY-MM-DD"
+	we.PlaceHolder = "YYYY-MM-DD"
+	is.PlaceHolder = "YYYY-MM-DD"
+	ie.PlaceHolder = "YYYY-MM-DD"
+
+	items := []*widget.FormItem{
+		{Text: "Работа: c", Widget: ws},
+		{Text: "Работа: по", Widget: we},
+		{Text: "Простой: c (необязательно)", Widget: is},
+		{Text: "Простой: по (необязательно)", Widget: ie},
+		{Text: "Плотность (работа)", Widget: wr},
+		{Text: "Плотность (простои, по умолчанию = плотность работы)", Widget: ir},
+		{Text: "Δh (м)", Widget: dh},
+		{Text: "Единица давления", Widget: unit},
+	}
+
+	dlg := dialog.NewForm("Параметры гидростатики", "Ок", "Отмена", items,
+		func(ok bool) {
+			if !ok {
+				return // пользователь отменил
+			}
+
+			// Проверка обязательных полей
+			var missing []string
+			if strings.TrimSpace(ws.Text) == "" {
+				missing = append(missing, "Работа: c")
+			}
+			if strings.TrimSpace(we.Text) == "" {
+				missing = append(missing, "Работа: по")
+			}
+			if strings.TrimSpace(wr.Text) == "" {
+				missing = append(missing, "Плотность (работа)")
+			}
+			if strings.TrimSpace(dh.Text) == "" {
+				missing = append(missing, "Δh (м)")
+			}
+			if unit.Selected == "" {
+				missing = append(missing, "Единица давления")
+			}
+			if len(missing) > 0 {
+				dialog.ShowInformation(
+					"Ошибка",
+					"Пожалуйста, заполните обязательные поля:\n• "+strings.Join(missing, "\n• "),
+					s.window,
+				)
+				return
+			}
+
+			// Теперь парсим время и собираем ошибки
+			var parseErrs []string
+
+			workStart, err := s.converter.ParseFlexibleTime(ws.Text)
+			if err != nil {
+				parseErrs = append(parseErrs, fmt.Sprintf("Работа: c — %v", err))
+			}
+			workEnd, err := s.converter.ParseFlexibleTime(we.Text)
+			if err != nil {
+				parseErrs = append(parseErrs, fmt.Sprintf("Работа: по — %v", err))
+			}
+
+			// для необязательных полей простоя парсим только если не пусто
+			var idleStart, idleEnd time.Time
+			if strings.TrimSpace(is.Text) != "" {
+				idleStart, err = s.converter.ParseFlexibleTime(is.Text)
+				if err != nil {
+					parseErrs = append(parseErrs, fmt.Sprintf("Простой: c — %v", err))
+				}
+			}
+			if strings.TrimSpace(ie.Text) != "" {
+				idleEnd, err = s.converter.ParseFlexibleTime(ie.Text)
+				if err != nil {
+					parseErrs = append(parseErrs, fmt.Sprintf("Простой: по — %v", err))
+				}
+			}
+
+			// Если были ошибки парсинга — показываем и выходим
+			if len(parseErrs) > 0 {
+				dialog.ShowError(
+					fmt.Errorf("Неверный формат даты/времени:\n%s", strings.Join(parseErrs, "\n")),
+					s.window,
+				)
+				return
+			}
+
+			// дальше парсим плотности и формируем cfg как раньше
+			workDens, _ := strconv.ParseFloat(wr.Text, 64)
+			var idleDens float64
+			if strings.TrimSpace(ir.Text) == "" {
+				idleDens = workDens
+			} else {
+				idleDens, _ = strconv.ParseFloat(ir.Text, 64)
+			}
+			depthDiff, _ := strconv.ParseFloat(dh.Text, 64)
+
+			cfg := models.OperationConfig{
+				WorkStart:    workStart,
+				WorkEnd:      workEnd,
+				IdleStart:    idleStart,
+				IdleEnd:      idleEnd,
+				WorkDensity:  workDens,
+				IdleDensity:  idleDens,
+				DepthDiff:    depthDiff,
+				PressureUnit: unit.Selected,
+			}
+
+			go s.doTableOneImport(path, cfg)
+		}, s.window)
+
+	dlg.Show()
+}
+
+// doTableOneImport делает парсинг TableOne, сохраняет, логирует и выводит результат.
+func (s *Service) doTableOneImport(path string, cfg models.OperationConfig) {
+	start := time.Now()
+	data, err := s.importer.ParseBlockOneFile(path, cfg)
+	count := len(data)
+	if err != nil {
+		s.zLog.Errorw("TableOne import failed", "error", err, "duration", time.Since(start))
+		dialog.ShowError(err, s.window)
+		return
+	}
+	if err2 := s.store.AddBlockOneData(data); err2 != nil {
+		s.zLog.Errorw("TableOne save failed", "error", err2)
+		dialog.ShowError(fmt.Errorf("ошибка сохранения: %w", err2), s.window)
+		return
+	}
+	elapsed := time.Since(start)
+	s.zLog.Infow("TableOne import success", "count", count, "duration", elapsed)
+	dialog.ShowInformation(
+		"Готово",
+		fmt.Sprintf("TableOne: %d записей импортировано за %s", count, elapsed.Round(time.Millisecond)),
+		s.window,
+	)
+}
+
+// doGenericImport обрабатывает TableTwo/TableThree.
+func (s *Service) doGenericImport(path, typ string) {
+	start := time.Now()
+	var count int
+	var err error
+
+	switch typ {
+	case "TableTwo":
+		var data []models.TableTwo
+		data, err = s.importer.ParseBlockTwoFile(path)
+		count = len(data)
+		if err == nil {
+			err = s.store.AddBlockTwoData(data)
+		}
+	case "TableThree":
+		var data []models.TableThree
+		data, err = s.importer.ParseBlockThreeFile(path)
+		count = len(data)
+		if err == nil {
+			err = s.store.AddBlockThreeData(data)
+		}
+
+	case "TableFour":
+		// Инклинометрия
+		var data []models.Inclinometry
+		data, err = s.importer.ParseBlockFourFile(path)
+		count = len(data)
+		if err == nil {
+			// Реализуйте в Storage метод AddBlockFourData
+			err = s.store.AddBlockFourData(data)
+		}
+	}
+
+	if err != nil {
+		s.zLog.Errorw(typ+" import failed", "error", err, "duration", time.Since(start))
+		dialog.ShowError(err, s.window)
+		return
+	}
+	elapsed := time.Since(start)
+	s.zLog.Infow(typ+" import success", "count", count, "duration", elapsed)
+	dialog.ShowInformation(
+		"Готово",
+		fmt.Sprintf("%s: %d записей импортировано за %s", typ, count, elapsed.Round(time.Millisecond)),
+		s.window,
+	)
 }

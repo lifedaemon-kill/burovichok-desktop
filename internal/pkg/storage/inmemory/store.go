@@ -11,72 +11,73 @@ import (
 //можешно импортировать несколько файлов одного или разных типов, данные будут накапливаться. Кнопка "Очистить хранилище" удалит всё из памяти. Хранятся в InMemoryStore
 //в будущем, если понадобятся данные для графиков или экспорта, соответствующие сервисы (chart, export) также должны будут получить экземпляр Storage и вызывать методы GetAll...Data().
 
-
 // InMemoryStore реализует интерфейс storage.Storage, храня данные в памяти.
 type InMemoryStore struct {
-	mu            sync.RWMutex // Mutex для безопасного доступа к данным
-	blockOneData  []models.BlockOne
-	blockTwoData  []models.BlockTwo
-	blockThreeData []models.BlockThree
+	mu             sync.RWMutex // Mutex для безопасного доступа к данным
+	blockOneData   []models.TableOne
+	blockTwoData   []models.TableTwo
+	blockThreeData []models.TableThree
+	inclinometry   []models.Inclinometry
 }
 
 // NewStore создает новый экземпляр InMemoryStore.
 func NewStore() storage.Storage { // Возвращаем интерфейс!
 	return &InMemoryStore{
-		blockOneData:  make([]models.BlockOne, 0),
-		blockTwoData:  make([]models.BlockTwo, 0),
-		blockThreeData: make([]models.BlockThree, 0),
+		blockOneData:   make([]models.TableOne, 0),
+		blockTwoData:   make([]models.TableTwo, 0),
+		blockThreeData: make([]models.TableThree, 0),
+		inclinometry:   make([]models.Inclinometry, 0),
 	}
 }
 
-// AddBlockOneData добавляет данные BlockOne в хранилище.
-func (s *InMemoryStore) AddBlockOneData(data []models.BlockOne) error {
+// AddBlockOneData добавляет данные TableOne в хранилище.
+func (s *InMemoryStore) AddBlockOneData(data []models.TableOne) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.blockOneData = append(s.blockOneData, data...)
 	return nil // В in-memory обычно нет ошибок добавления, кроме нехватки памяти (panic)
 }
 
-// AddBlockTwoData добавляет данные BlockTwo в хранилище.
-func (s *InMemoryStore) AddBlockTwoData(data []models.BlockTwo) error {
+// AddBlockTwoData добавляет данные TableTwo в хранилище.
+func (s *InMemoryStore) AddBlockTwoData(data []models.TableTwo) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.blockTwoData = append(s.blockTwoData, data...)
 	return nil
 }
 
-// AddBlockThreeData добавляет данные BlockThree в хранилище.
-func (s *InMemoryStore) AddBlockThreeData(data []models.BlockThree) error {
+// AddBlockThreeData добавляет данные TableThree в хранилище.
+func (s *InMemoryStore) AddBlockThreeData(data []models.TableThree) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.blockThreeData = append(s.blockThreeData, data...)
 	return nil
 }
 
-// GetAllBlockOneData возвращает копию всех данных BlockOne.
-func (s *InMemoryStore) GetAllBlockOneData() ([]models.BlockOne, error) {
+// GetAllBlockOneData возвращает копию всех данных TableOne.
+func (s *InMemoryStore) GetAllBlockOneData() ([]models.TableOne, error) {
 	s.mu.RLock() // Блокировка на чтение
 	defer s.mu.RUnlock()
 	// Возвращаем копию, чтобы внешние изменения не влияли на хранилище
-	dataCopy := make([]models.BlockOne, len(s.blockOneData))
+	dataCopy := make([]models.TableOne, len(s.blockOneData))
 	copy(dataCopy, s.blockOneData)
 	return dataCopy, nil
 }
 
-// GetAllBlockTwoData возвращает копию всех данных BlockTwo.
-func (s *InMemoryStore) GetAllBlockTwoData() ([]models.BlockTwo, error) {
+// GetAllBlockTwoData возвращает копию всех данных TableTwo.
+func (s *InMemoryStore) GetAllBlockTwoData() ([]models.TableTwo, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	dataCopy := make([]models.BlockTwo, len(s.blockTwoData))
+	dataCopy := make([]models.TableTwo, len(s.blockTwoData))
 	copy(dataCopy, s.blockTwoData)
 	return dataCopy, nil
 }
 
-// GetAllBlockThreeData возвращает копию всех данных BlockThree.
-func (s *InMemoryStore) GetAllBlockThreeData() ([]models.BlockThree, error) {
+// GetAllBlockThreeData возвращает копию всех данных TableThree.
+func (s *InMemoryStore) GetAllBlockThreeData() ([]models.TableThree, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	dataCopy := make([]models.BlockThree, len(s.blockThreeData))
+	dataCopy := make([]models.TableThree, len(s.blockThreeData))
 	copy(dataCopy, s.blockThreeData)
 	return dataCopy, nil
 }
@@ -85,29 +86,36 @@ func (s *InMemoryStore) GetAllBlockThreeData() ([]models.BlockThree, error) {
 func (s *InMemoryStore) ClearAll() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.blockOneData = make([]models.BlockOne, 0)
-	s.blockTwoData = make([]models.BlockTwo, 0)
-	s.blockThreeData = make([]models.BlockThree, 0)
+	s.blockOneData = make([]models.TableOne, 0)
+	s.blockTwoData = make([]models.TableTwo, 0)
+	s.blockThreeData = make([]models.TableThree, 0)
 	return nil
 }
 
-// CountBlockOne возвращает количество записей BlockOne.
+// CountBlockOne возвращает количество записей TableOne.
 func (s *InMemoryStore) CountBlockOne() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.blockOneData)
 }
 
-// CountBlockTwo возвращает количество записей BlockTwo.
+// CountBlockTwo возвращает количество записей TableTwo.
 func (s *InMemoryStore) CountBlockTwo() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.blockTwoData)
 }
 
-// CountBlockThree возвращает количество записей BlockThree.
+// CountBlockThree возвращает количество записей TableThree.
 func (s *InMemoryStore) CountBlockThree() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.blockThreeData)
+}
+
+func (s *InMemoryStore) AddBlockFourData(data []models.Inclinometry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.inclinometry = append(s.inclinometry, data...)
+	return nil // В in-memory обычно нет ошибок добавления, кроме нехватки памяти (panic)
 }

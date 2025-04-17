@@ -1,11 +1,6 @@
 package models
 
 const (
-	ENV_PROD = "prod"
-	ENV_DEV  = "dev"
-)
-
-const (
 	FileExtension_XSLX = iota
 	FileExtension_CSV
 )
@@ -22,5 +17,3 @@ const (
 	ResponseStatus_BAD_REQUSET
 	ResponseStatus_INTERNAL_ERROR
 )
-
-// TODO Дописать единицы измерения
