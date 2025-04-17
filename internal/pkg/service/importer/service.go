@@ -212,7 +212,7 @@ func (s *Service) ParseBlockFourFile(path string) ([]models.Inclinometry, error)
 
 		cells := row.Cells
 		// нужно минимум 10 колонок (0…9) для наших трёх полей
-		if len(cells) < 10 {
+		if len(cells) < 3 {
 			continue
 		}
 
@@ -223,13 +223,13 @@ func (s *Service) ParseBlockFourFile(path string) ([]models.Inclinometry, error)
 		}
 
 		// 5) парсим TrueVerticalDepth (колонка I / cells[8])
-		tvd, err := strconv.ParseFloat(cells[8].Value, 64)
+		tvd, err := strconv.ParseFloat(cells[1].Value, 64)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parse TrueVerticalDepth block4 row %d", row.Index)
 		}
 
 		// 6) парсим TrueVerticalDepthSubSea (колонка J / cells[9])
-		tvdss, err := strconv.ParseFloat(cells[9].Value, 64)
+		tvdss, err := strconv.ParseFloat(cells[2].Value, 64)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parse TrueVerticalDepthSubSea block4 row %d", row.Index)
 		}
