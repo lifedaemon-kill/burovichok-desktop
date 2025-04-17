@@ -10,7 +10,16 @@ import (
 // замера. Т.е. формула для пересчета должна учитывать разные сценарии (пересчетные коэффициенты) в зависимости от ранее заданных при импорте значений Рзаб (атм,
 // кгс/см2, бар)
 // CalcBlockOne
-func CalcBlockOne(table []models.BlockOne) []models.BlockOneRich {
+
+// Service отвечает за логику расчетов данных в моделях.
+type Service struct{}
+
+// NewService создает новый экземпляр сервис импорта.
+func NewService() *Service {
+	return &Service{}
+}
+
+func (s *Service) CalcBlockOne(table []models.BlockOne) []models.BlockOneRich {
 	// rich := make([]models.BlockOneRich, len(table))
 
 	// for i, value := range table {
@@ -20,7 +29,7 @@ func CalcBlockOne(table []models.BlockOne) []models.BlockOneRich {
 	return nil
 }
 
-func CalcBlockThree(table []models.BlockThree) []models.BlockThreeRich {
+func (s *Service) CalcBlockThree(table []models.BlockThree) []models.BlockThreeRich {
 	// rich := make([]models.BlockThreeRich, len(table))
 
 	// for i, value := range table {
@@ -32,7 +41,7 @@ func CalcBlockThree(table []models.BlockThree) []models.BlockThreeRich {
 	return nil
 }
 
-func CalcBlockFive(table []models.GeneralInformation) []models.GeneralInformation {
+func (s *Service) CalcBlockFive(table []models.GeneralInformation) []models.GeneralInformation {
 
 	// for i, value := range table {
 	// 	//TODO
