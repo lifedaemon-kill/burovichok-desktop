@@ -35,32 +35,34 @@ type BlockThree struct {
 	FlowGas    float64   `json:"flow_gas"`    // Qг, тыс. м3/сут
 }
 
+// BlockFour Инклинометрия
 type BlockFour struct {
+	DepthMeasured float64 // Метры, Глубина спуска прибора по стволу (MD)
+	DepthVertical float64 // Метры, Глубина спуска прибора по вертикали (TVD)
+	AbsoluteDepth float64 // Метры, Абсолютная отметка (TVDSS)
 }
 
 //ИНФОРМАЦИОННЫЙ БЛОК
 
 // BlockFive Общие сведения об исследовании
 type BlockFive struct {
-	FieldName                 FieldName         // Месторождение
-	WellNumber                int               // № скважины
-	ClusterSiteNumber         int               // № кустовой площадки
-	ProductiveHorizon         ProductiveHorizon // Продуктивный горизонт, пласт
-	StartDate                 time.Time         // Дата начала исследования
-	EndDate                   time.Time         // Дата окончания исследования
-	InstrumentType            InstrumentType    // Тип прибора
-	InstrumentNumber          int               // № прибора
-	DepthMeasured             float64           // Метры, Глубина спуска прибора по стволу (MD)
-	DepthVertical             float64           // Метры, Глубина спуска прибора по вертикали (TVD)
-	AbsoluteDepth             float64           // Метры, Абсолютная отметка (TVDSS)
-	PerforationDepthMeasured  float64           // Метры, Верхние дыры перфорации по стволу (MD)
-	PerforationDepthVertical  float64           // Метры, Верхние дыры перфорации по вертикали (TVD)
-	DepthDifference           float64           // Метры, Разница между прибором и ВДП по абсолютным отметкам
-	DensityOil                float64           // кгм/м3, Плотность для пересчета дебита нефти
-	DensityLiquidStopped      float64           // кгм/м3, Плотность жидкости для пересчета давления на ВДП в остановленной скважине
-	DensityLiquidWorking      float64           // кгм/м3, Плотность жидкости для пересчета давления на ВДП в работающей скважине
-	PressureDifferenceStopped float64           // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в остановленной скважине
-	PressureDifferenceWorking float64           // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в работающей скважине
+	FieldName                           // Месторождение
+	WellNumber                int       // № скважины
+	ClusterSiteNumber         int       // № кустовой площадки
+	ProductiveHorizon                   // Продуктивный горизонт, пласт
+	StartDate                 time.Time // Дата начала исследования
+	EndDate                   time.Time // Дата окончания исследования
+	InstrumentType                      // Тип прибора
+	InstrumentNumber          int       // № прибора
+	BlockFour                           // Инклинометрия
+	PerforationDepthMeasured  float64   // Метры, Верхние дыры перфорации по стволу (MD)
+	PerforationDepthVertical  float64   // Метры, Верхние дыры перфорации по вертикали (TVD)
+	DepthDifference           float64   // Метры, Разница между прибором и ВДП по абсолютным отметкам
+	DensityOil                float64   // кгм/м3, Плотность для пересчета дебита нефти
+	DensityLiquidStopped      float64   // кгм/м3, Плотность жидкости для пересчета давления на ВДП в остановленной скважине
+	DensityLiquidWorking      float64   // кгм/м3, Плотность жидкости для пересчета давления на ВДП в работающей скважине
+	PressureDifferenceStopped float64   // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в остановленной скважине
+	PressureDifferenceWorking float64   // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в работающей скважине
 }
 
 //СПРАВОЧНИКИ
