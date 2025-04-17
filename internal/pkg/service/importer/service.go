@@ -46,6 +46,7 @@ func (s *Service) ParseBlockOneFile(path string) ([]models.BlockOne, error) {
 			}
 		} else {
 			// Ожидаем формат DD/MM/YYYY HH:MM:SS
+			//TODO должно быть 5 различных форматирований времени
 			ts, err = time.Parse("02/01/2006 15:04:05", tsRaw)
 			if err != nil {
 				return nil, errors.Wrapf(err, "parse timestamp on row %d", i+2)
