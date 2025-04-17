@@ -8,5 +8,5 @@ db:
 
 ui:
   name: "burovichok"
-  width: 800
-  height: 400
+  width: 1000
+  height: 600
