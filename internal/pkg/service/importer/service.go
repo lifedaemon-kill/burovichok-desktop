@@ -1,7 +1,6 @@
 package importer
 
 import (
-	"math"
 	"os"
 	"strconv"
 	"time"
@@ -16,15 +15,21 @@ type calcService interface {
 	CalcTableOne(rec models.TableOne, cfg models.OperationConfig) models.TableOne
 }
 
+type converterService interface {
+	ParseFlexibleTime(raw string) (time.Time, error)
+}
+
 // Service отвечает за логику импорта данных из Excel.
 type Service struct {
-	calc calcService
+	calc      calcService
+	converter converterService
 }
 
 // NewService создает новый экземпляр сервис импорта.
-func NewService(calc calcService) *Service {
+func NewService(calc calcService, converter converterService) *Service {
 	return &Service{
-		calc: calc,
+		calc:      calc,
+		converter: converter,
 	}
 }
 
@@ -48,7 +53,7 @@ func (s *Service) ParseBlockOneFile(path string, cfg models.OperationConfig) ([]
 		if len(cells) < 3 {
 			continue
 		}
-		ts, err := parseFlexibleTime(cells[0].Value)
+		ts, err := s.converter.ParseFlexibleTime(cells[0].Value)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parse timestamp block1 row %d", row.Index)
 		}
@@ -95,7 +100,7 @@ func (s *Service) ParseBlockTwoFile(path string) ([]models.TableTwo, error) {
 			continue
 		}
 		// Tubing pressure
-		tsTub, err := parseFlexibleTime(cells[0].Value)
+		tsTub, err := s.converter.ParseFlexibleTime(cells[0].Value)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parse tubing timestamp row %d", row.Index)
 		}
@@ -104,7 +109,7 @@ func (s *Service) ParseBlockTwoFile(path string) ([]models.TableTwo, error) {
 			return nil, errors.Wrapf(err, "parse tubing pressure row %d", row.Index)
 		}
 		// Annulus pressure
-		tsAnn, err := parseFlexibleTime(cells[2].Value)
+		tsAnn, err := s.converter.ParseFlexibleTime(cells[2].Value)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parse annulus timestamp row %d", row.Index)
 		}
@@ -113,7 +118,7 @@ func (s *Service) ParseBlockTwoFile(path string) ([]models.TableTwo, error) {
 			return nil, errors.Wrapf(err, "parse annulus pressure row %d", row.Index)
 		}
 		// Linear pressure
-		tsLin, err := parseFlexibleTime(cells[4].Value)
+		tsLin, err := s.converter.ParseFlexibleTime(cells[4].Value)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parse linear timestamp row %d", row.Index)
 		}
@@ -155,7 +160,7 @@ func (s *Service) ParseBlockThreeFile(path string) ([]models.TableThree, error) 
 		if len(cells) < 4 {
 			continue
 		}
-		ts, err := parseFlexibleTime(cells[0].Value)
+		ts, err := s.converter.ParseFlexibleTime(cells[0].Value)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parse timestamp block3 row %d", row.Index)
 		}
@@ -180,46 +185,4 @@ func (s *Service) ParseBlockThreeFile(path string) ([]models.TableThree, error) 
 		})
 	}
 	return out, nil
-}
-
-// parseFlexibleTime пытается разобрать время как Excel‑serial или ISO/RFC строки.
-func parseFlexibleTime(raw string) (time.Time, error) {
-	if num, err := strconv.ParseFloat(raw, 64); err == nil {
-		return excelDateToTime(num, false)
-	}
-
-	layouts := []string{
-		time.RFC3339,          // 2024-11-09T17:21:21Z
-		"2006-01-02T15:04:05", // 2024-11-09T17:21:21
-		"2006-01-02 15:04:05", // 2024-11-09 17:21:21
-		"2006-01-02",          // 2024-11-10
-		"02/01/2006 15:04:05", // 09/11/2024 17:21:21
-		"02/01/2006",          // 09/11/2024
-		"02.01.2006 15:04:05", // 09.11.2024 17:21:21
-		"02.01.2006",          // 09.11.2024
-	}
-
-	for _, layout := range layouts {
-		if t, err := time.Parse(layout, raw); err == nil {
-			return t, nil
-		}
-	}
-	return time.Time{}, errors.Errorf("unsupported time format %q", raw)
-}
-
-// excelDateToTime конвертирует serial date Excel в time.Time.
-func excelDateToTime(serial float64, date1904 bool) (time.Time, error) {
-	var epoch time.Time
-	if date1904 {
-		epoch = time.Date(1904, 1, 1, 0, 0, 0, 0, time.UTC)
-	} else {
-		epoch = time.Date(1899, 12, 30, 0, 0, 0, 0, time.UTC)
-	}
-	days := math.Floor(serial)
-	if !date1904 && days >= 61 {
-		days--
-	}
-	frac := serial - math.Floor(serial)
-	d := epoch.Add(time.Duration(days) * 24 * time.Hour)
-	return d.Add(time.Duration(frac * 24 * float64(time.Hour))), nil
 }

@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -13,12 +12,47 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
-	"github.com/cockroachdb/errors"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 	appStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/storage"
 )
+
+// importer умеет парсить три типа блоков.
+type importer interface {
+	ParseBlockOneFile(path string, cfg models.OperationConfig) ([]models.TableOne, error)
+	ParseBlockTwoFile(path string) ([]models.TableTwo, error)
+	ParseBlockThreeFile(path string) ([]models.TableThree, error)
+}
+
+type converterService interface {
+	ParseFlexibleTime(raw string) (time.Time, error)
+}
+
+// Service отвечает за инициализацию и запуск UI приложения.
+type Service struct {
+	app       fyne.App
+	window    fyne.Window
+	zLog      logger.Logger
+	importer  importer
+	store     appStorage.Storage
+	converter converterService
+}
+
+// NewService создаёт новый UI‑сервис.
+func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService, store appStorage.Storage) *Service {
+	a := app.New()
+	win := a.NewWindow(title)
+	win.Resize(fyne.NewSize(float32(w), float32(h)))
+	return &Service{
+		app:       a,
+		window:    win,
+		zLog:      zLog,
+		importer:  imp,
+		store:     store,
+		converter: converter,
+	}
+}
 
 // ratioLayout располагает два объекта в контейнере в пропорции ratio к (1-ratio).
 type ratioLayout struct{ ratio float32 }
@@ -41,30 +75,6 @@ func (r *ratioLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 		}
 	}
 	return fyne.NewSize(0, h)
-}
-
-// Importer умеет парсить три типа блоков.
-type Importer interface {
-	ParseBlockOneFile(path string, cfg models.OperationConfig) ([]models.TableOne, error)
-	ParseBlockTwoFile(path string) ([]models.TableTwo, error)
-	ParseBlockThreeFile(path string) ([]models.TableThree, error)
-}
-
-// Service отвечает за инициализацию и запуск UI приложения.
-type Service struct {
-	app      fyne.App
-	window   fyne.Window
-	zLog     logger.Logger
-	importer Importer
-	store    appStorage.Storage
-}
-
-// NewService создаёт новый UI‑сервис.
-func NewService(title string, w, h int, zLog logger.Logger, imp Importer, store appStorage.Storage) *Service {
-	a := app.New()
-	win := a.NewWindow(title)
-	win.Resize(fyne.NewSize(float32(w), float32(h)))
-	return &Service{app: a, window: win, zLog: zLog, importer: imp, store: store}
 }
 
 // Run строит интерфейс и запускает приложение.
@@ -201,11 +211,11 @@ func showTableOneForm(s *Service, path string) {
 			// Теперь парсим время и собираем ошибки
 			var parseErrs []string
 
-			workStart, err := parseFlexibleTime(ws.Text)
+			workStart, err := s.converter.ParseFlexibleTime(ws.Text)
 			if err != nil {
 				parseErrs = append(parseErrs, fmt.Sprintf("Работа: c — %v", err))
 			}
-			workEnd, err := parseFlexibleTime(we.Text)
+			workEnd, err := s.converter.ParseFlexibleTime(we.Text)
 			if err != nil {
 				parseErrs = append(parseErrs, fmt.Sprintf("Работа: по — %v", err))
 			}
@@ -213,13 +223,13 @@ func showTableOneForm(s *Service, path string) {
 			// для необязательных полей простоя парсим только если не пусто
 			var idleStart, idleEnd time.Time
 			if strings.TrimSpace(is.Text) != "" {
-				idleStart, err = parseFlexibleTime(is.Text)
+				idleStart, err = s.converter.ParseFlexibleTime(is.Text)
 				if err != nil {
 					parseErrs = append(parseErrs, fmt.Sprintf("Простой: c — %v", err))
 				}
 			}
 			if strings.TrimSpace(ie.Text) != "" {
-				idleEnd, err = parseFlexibleTime(ie.Text)
+				idleEnd, err = s.converter.ParseFlexibleTime(ie.Text)
 				if err != nil {
 					parseErrs = append(parseErrs, fmt.Sprintf("Простой: по — %v", err))
 				}
@@ -320,46 +330,4 @@ func (s *Service) doGenericImport(path, typ string) {
 		fmt.Sprintf("%s: %d записей импортировано за %s", typ, count, elapsed.Round(time.Millisecond)),
 		s.window,
 	)
-}
-
-// parseFlexibleTime пытается разобрать время как Excel‑serial или ISO/RFC строки.
-func parseFlexibleTime(raw string) (time.Time, error) {
-	if num, err := strconv.ParseFloat(raw, 64); err == nil {
-		return excelDateToTime(num, false)
-	}
-
-	layouts := []string{
-		time.RFC3339,          // 2024-11-09T17:21:21Z
-		"2006-01-02T15:04:05", // 2024-11-09T17:21:21
-		"2006-01-02 15:04:05", // 2024-11-09 17:21:21
-		"2006-01-02",          // 2024-11-10
-		"02/01/2006 15:04:05", // 09/11/2024 17:21:21
-		"02/01/2006",          // 09/11/2024
-		"02.01.2006 15:04:05", // 09.11.2024 17:21:21
-		"02.01.2006",          // 09.11.2024
-	}
-
-	for _, layout := range layouts {
-		if t, err := time.Parse(layout, raw); err == nil {
-			return t, nil
-		}
-	}
-	return time.Time{}, errors.Errorf("unsupported time format %q", raw)
-}
-
-// excelDateToTime конвертирует serial date Excel в time.Time.
-func excelDateToTime(serial float64, date1904 bool) (time.Time, error) {
-	var epoch time.Time
-	if date1904 {
-		epoch = time.Date(1904, 1, 1, 0, 0, 0, 0, time.UTC)
-	} else {
-		epoch = time.Date(1899, 12, 30, 0, 0, 0, 0, time.UTC)
-	}
-	days := math.Floor(serial)
-	if !date1904 && days >= 61 {
-		days--
-	}
-	frac := serial - math.Floor(serial)
-	d := epoch.Add(time.Duration(days) * 24 * time.Hour)
-	return d.Add(time.Duration(frac * 24 * float64(time.Hour))), nil
 }
