@@ -6,9 +6,13 @@ import (
 	"testing"
 )
 
+// Выполняется первым
 func TestOpen(t *testing.T) {
 	DSN := "tests/database/example.db"
 
-	_, err := New(config.DBConf{DSN: DSN})
+	db, err := NewDB(config.DBConf{DSN: DSN})
+	assert.Nil(t, err)
+
+	_, err = NewGuidebookRepository(db)
 	assert.Nil(t, err)
 }
