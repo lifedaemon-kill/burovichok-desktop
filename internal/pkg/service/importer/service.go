@@ -68,9 +68,9 @@ func (s *Service) ParseBlockOneFile(path string, cfg models.OperationConfig) ([]
 		}
 
 		rec := models.TableOne{
-			Timestamp:     ts,
-			PressureDepth: pres,
-			Temperature:   temp,
+			Timestamp:        ts,
+			PressureDepth:    pres,
+			TemperatureDepth: temp,
 		}
 
 		// 4) автоматический расчёт ВДП
@@ -193,7 +193,7 @@ func (s *Service) ParseBlockThreeFile(path string) ([]models.TableThree, error) 
 }
 
 // ParseBlockFourFile читает XLSX‑файл и возвращает []Inclinometry.
-func (s *Service) ParseBlockFourFile(path string) ([]models.Inclinometry, error) {
+func (s *Service) ParseBlockFourFile(path string) ([]models.TableFour, error) {
 	// 1) читаем файл
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -206,7 +206,7 @@ func (s *Service) ParseBlockFourFile(path string) ([]models.Inclinometry, error)
 		return nil, errors.Wrap(err, "xlsxreader.NewReader")
 	}
 
-	var out []models.Inclinometry
+	var out []models.TableFour
 
 	// 3) перебираем все строки на первом листе
 	for row := range xl.ReadRows(xl.Sheets[0]) {
@@ -239,7 +239,7 @@ func (s *Service) ParseBlockFourFile(path string) ([]models.Inclinometry, error)
 		}
 
 		// 7) собираем запись и добавляем в выходной срез
-		rec := models.Inclinometry{
+		rec := models.TableFour{
 			MeasuredDepth:           md,
 			TrueVerticalDepth:       tvd,
 			TrueVerticalDepthSubSea: tvdss,

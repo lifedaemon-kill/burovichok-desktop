@@ -44,7 +44,7 @@ func (s *Service) CalcTableOne(rec models.TableOne, cfg models.OperationConfig) 
 	// 4) итог в Па и обратно
 	pVpd := p0 + deltaPa
 	v := fromPa(pVpd, cfg.PressureUnit)
-	rec.PressureVPD = &v
+	rec.PressureAtVDP = &v
 	return rec
 }
 
@@ -72,22 +72,14 @@ func (s *Service) CalcBlockThree(tbl models.TableThree) models.TableThree {
 	// 4) сохраняем результаты в исходную структуру
 	tbl.WaterFlowRate = &waterRate
 	tbl.OilFlowRate = &oilRate
-	tbl.GasToOilRatio = gfPtr
+	tbl.GasOilRatio = gfPtr
 
 	return tbl
 }
 
-func (s *Service) CalcBlockFive(table []models.GeneralInformation) []models.GeneralInformation {
-	// for i, value := range table {
-	// 	//TODO
-	// 	table[i].TrueVerticalDepth = 0
-	// 	table[i].TrueVerticalDepthSubSea = 0
-
-	// 	table[i].VDPTrueVerticalDepth = 0
-	// 	table[i].VDPTrueVerticalDepthSubSea = 0
-	// 	table[i].DifferenceInstrumentAndVDP = 0
-	// }
-	return nil
+func (s *Service) CalcBlockFive(table models.TableFive) models.TableFive {
+	// TODO
+	return models.TableFive{}
 }
 
 // конвертация в Паскали и обратно

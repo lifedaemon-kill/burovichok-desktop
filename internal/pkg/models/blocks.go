@@ -2,17 +2,17 @@ package models
 
 import "time"
 
-// BlockOne — Блок 1. Загрузка забойного давления и температуры
+// TableOne — Блок 1. Загрузка забойного давления и температуры
 // Поля соответствуют колонкам Excel через теги xlsx
-type BlockOne struct {
+type TableOne struct {
 	Timestamp        time.Time `xlsx:"Дата, время"`
 	PressureDepth    float64   `xlsx:"Рзаб на глубине замера, кгс/см2"`
 	TemperatureDepth float64   `xlsx:"Tзаб на глубине замера, °C"`
 	PressureAtVDP    *float64  // расчётное поле
 }
 
-// BlockTwo — Блок 2. Замеры трубного, затрубного и линейного давления
-type BlockTwo struct {
+// TableTwo — Блок 2. Замеры трубного, затрубного и линейного давления
+type TableTwo struct {
 	TimestampTubing  time.Time `xlsx:"Дата трубного замера, Дата, время"`
 	PressureTubing   float64   `xlsx:"Ртр, кгс/см2"`
 	TimestampAnnulus time.Time `xlsx:"Дата затрубного замера, Дата, время"`
@@ -21,8 +21,8 @@ type BlockTwo struct {
 	PressureLinear   float64   `xlsx:"Рлин, кгс/см2"`
 }
 
-// BlockThree — Блок 3. Дебиты жидкости, воды, газа и расчётные поля
-type BlockThree struct {
+// TableThree — Блок 3. Дебиты жидкости, воды, газа и расчётные поля
+type TableThree struct {
 	Timestamp     time.Time `xlsx:"Дата, время"`
 	FlowLiquid    float64   `xlsx:"Qж, м3/сут"`
 	WaterCut      float64   `xlsx:"W, %"`
@@ -32,16 +32,16 @@ type BlockThree struct {
 	GasOilRatio   *float64  // ГФ, расчётное поле
 }
 
-// BlockFour — Блок 4. Инклинометрия (MD, TVD, TVDSS)
-type BlockFour struct {
+// TableFour — Блок 4. Инклинометрия (MD, TVD, TVDSS)
+type TableFour struct {
 	MeasuredDepth           float64 `xlsx:"Глубина по стволу, м"`    // MD
 	TrueVerticalDepth       float64 `xlsx:"Глубина по вертикали, м"` // TVD
 	TrueVerticalDepthSubSea float64 `xlsx:"Абсолютная глубина, м"`   // TVDSS
 }
 
-// BlockFive — Блок 5. Общие сведения об исследовании
+// TableFive — Блок 5. Общие сведения об исследовании
 // Поля берутся из формы или справочников, поэтому xlsx-тегов нет
-type BlockFive struct {
+type TableFive struct {
 	Field                   OilField          // Месторождение
 	WellNumber              int               // № скважины
 	ClusterNumber           int               // № кустовой площадки
@@ -50,7 +50,7 @@ type BlockFive struct {
 	EndTime                 time.Time         // Дата окончания исследования
 	InstrumentType          InstrumentType    // Тип прибора
 	InstrumentNumber        int               // № прибора
-	Inclinometry            BlockFour         // Данные инклинометрии
+	Inclinometry            TableFour         // Данные инклинометрии
 	VDPMeasuredDepth        float64           // MD ВДП
 	VDPTrueVerticalDepth    *float64          // TVD ВДП, расчётное
 	VDPTrueVerticalDepthSea *float64          // TVDSS ВДП, расчётное

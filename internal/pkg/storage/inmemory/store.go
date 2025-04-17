@@ -17,7 +17,7 @@ type InMemoryStore struct {
 	blockOneData   []models.TableOne
 	blockTwoData   []models.TableTwo
 	blockThreeData []models.TableThree
-	inclinometry   []models.Inclinometry
+	inclinometry   []models.TableFour
 }
 
 // NewStore создает новый экземпляр InMemoryStore.
@@ -26,7 +26,7 @@ func NewStore() storage.Storage { // Возвращаем интерфейс!
 		blockOneData:   make([]models.TableOne, 0),
 		blockTwoData:   make([]models.TableTwo, 0),
 		blockThreeData: make([]models.TableThree, 0),
-		inclinometry:   make([]models.Inclinometry, 0),
+		inclinometry:   make([]models.TableFour, 0),
 	}
 }
 
@@ -113,7 +113,7 @@ func (s *InMemoryStore) CountBlockThree() int {
 	return len(s.blockThreeData)
 }
 
-func (s *InMemoryStore) AddBlockFourData(data []models.Inclinometry) error {
+func (s *InMemoryStore) AddBlockFourData(data []models.TableFour) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.inclinometry = append(s.inclinometry, data...)
