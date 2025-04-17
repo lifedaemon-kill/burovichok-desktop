@@ -42,9 +42,9 @@ type TableThree struct {
 
 // Inclinometry BlockFour соответствует блоку 4: Инклинометрия.
 type Inclinometry struct {
-	MeasuredDepth           float64  // Метры, Глубина спуска прибора по стволу (MD)
-	TrueVerticalDepth       *float64 // Метры, Глубина спуска прибора по вертикали (TVD)
-	TrueVerticalDepthSubSea *float64 // Метры, Абсолютная отметка (TVDSS)
+	MeasuredDepth           float64 // Метры, Глубина спуска прибора по стволу (MD)
+	TrueVerticalDepth       float64 // Метры, Глубина спуска прибора по вертикали (TVD)
+	TrueVerticalDepthSubSea float64 // Метры, Абсолютная отметка (TVDSS)
 }
 
 //ИНФОРМАЦИОННЫЙ БЛОК
