@@ -12,16 +12,24 @@ import (
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
 
+type calcService interface {
+	CalcTableOne(rec models.TableOne, cfg models.OperationConfig) models.TableOne
+}
+
 // Service отвечает за логику импорта данных из Excel.
-type Service struct{}
+type Service struct {
+	calc calcService
+}
 
 // NewService создает новый экземпляр сервис импорта.
-func NewService() *Service {
-	return &Service{}
+func NewService(calc calcService) *Service {
+	return &Service{
+		calc: calc,
+	}
 }
 
 // ParseBlockOneFile читает XLSX‑файл через xlsxreader и возвращает []TableOne.
-func (s *Service) ParseBlockOneFile(path string) ([]models.TableOne, error) {
+func (s *Service) ParseBlockOneFile(path string, cfg models.OperationConfig) ([]models.TableOne, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "read file %s", path)
@@ -52,7 +60,16 @@ func (s *Service) ParseBlockOneFile(path string) ([]models.TableOne, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "parse temperature block1 row %d", row.Index)
 		}
-		out = append(out, models.TableOne{Timestamp: ts, PressureDepth: pres, Temperature: temp})
+
+		rec := models.TableOne{
+			Timestamp:     ts,
+			PressureDepth: pres,
+			Temperature:   temp,
+		}
+
+		// 4) автоматический расчёт ВДП
+		rec = s.calc.CalcTableOne(rec, cfg)
+		out = append(out, rec)
 	}
 	return out, nil
 }
