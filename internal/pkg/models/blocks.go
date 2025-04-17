@@ -44,8 +44,8 @@ type Inclinometry struct {
 
 //ИНФОРМАЦИОННЫЙ БЛОК
 
-// BlockFive Общие сведения об исследовании
-type BlockFive struct {
+// GeneralInformation BlockFive Общие сведения об исследовании
+type GeneralInformation struct {
 	FieldName                           // Месторождение
 	WellNumber                int       // № скважины
 	ClusterSiteNumber         int       // № кустовой площадки
