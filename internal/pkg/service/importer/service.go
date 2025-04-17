@@ -8,7 +8,7 @@ import (
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/cockroachdb/errors"
 
-	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/models"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
 
 // Service отвечает за логику импорта данных из Excel.

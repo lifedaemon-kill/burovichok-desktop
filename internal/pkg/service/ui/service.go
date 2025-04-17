@@ -11,8 +11,8 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 
-	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/logger"
-	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/models"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
 
 // ratioLayout располагает два объекта в контейнере в пропорции ratio к (1-ratio).

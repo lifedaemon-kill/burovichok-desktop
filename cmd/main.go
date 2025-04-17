@@ -8,10 +8,10 @@ import (
 
 	"github.com/cockroachdb/errors"
 
-	"github.com/lifedaemon-kill/burovichok-backend/internal/config"
-	"github.com/lifedaemon-kill/burovichok-backend/internal/pkg/logger"
-	importerService "github.com/lifedaemon-kill/burovichok-backend/internal/pkg/service/importer"
-	uiService "github.com/lifedaemon-kill/burovichok-backend/internal/pkg/service/ui"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/config"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
+	importerService "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/service/importer"
+	uiService "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/service/ui"
 )
 
 func main() {

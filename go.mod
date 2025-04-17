@@ -1,4 +1,4 @@
-module github.com/lifedaemon-kill/burovichok-backend
+module github.com/lifedaemon-kill/burovichok-desktop
 
 go 1.23.5
 
