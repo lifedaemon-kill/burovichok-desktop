@@ -35,8 +35,8 @@ type BlockThree struct {
 	FlowGas    float64   `json:"flow_gas"`    // Qг, тыс. м3/сут
 }
 
-// BlockFour Инклинометрия
-type BlockFour struct {
+// Inclinometry BlockFour Инклинометрия
+type Inclinometry struct {
 	DepthMeasured float64 // Метры, Глубина спуска прибора по стволу (MD)
 	DepthVertical float64 // Метры, Глубина спуска прибора по вертикали (TVD)
 	AbsoluteDepth float64 // Метры, Абсолютная отметка (TVDSS)
@@ -54,7 +54,7 @@ type BlockFive struct {
 	EndDate                   time.Time // Дата окончания исследования
 	InstrumentType                      // Тип прибора
 	InstrumentNumber          int       // № прибора
-	BlockFour                           // Инклинометрия
+	Inclinometry                        // Инклинометрия
 	PerforationDepthMeasured  float64   // Метры, Верхние дыры перфорации по стволу (MD)
 	PerforationDepthVertical  float64   // Метры, Верхние дыры перфорации по вертикали (TVD)
 	DepthDifference           float64   // Метры, Разница между прибором и ВДП по абсолютным отметкам
