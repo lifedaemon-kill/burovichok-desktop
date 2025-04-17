@@ -14,6 +14,8 @@ import (
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	inmemory "github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/pressly/goose/v3"
 )
 
 func main() {
@@ -42,9 +44,19 @@ func bootstrap(ctx context.Context) error {
 	importer := importerService.NewService()
 	blocksStore := inmemory.NewStore()
 
-	guidebooksStore, err := sqlite.New(conf.DB)
+	db, err := sqlite.NewDB(conf.DB)
 	if err != nil {
-		return errors.Wrap(err, "sqlite.New")
+		return errors.Wrapf(err, "не удалось открыть бд")
+	}
+	// Применяем миграции
+	if err = goose.Up(db.DB, "migrations"); err != nil {
+		log.Fatalf("Could not migrate: %v", err)
+	}
+
+	//Репозитории для работы с данными
+	guidebooksRepository, err := sqlite.NewGuidebookRepository(db)
+	if err != nil {
+		return errors.Wrap(err, "sqlite.NewGuidebookRepository")
 	}
 
 	ui := uiService.NewService(conf.UI.Name, conf.UI.Width, conf.UI.Height, zLog, importer, blocksStore)
