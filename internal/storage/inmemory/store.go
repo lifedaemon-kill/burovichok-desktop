@@ -4,9 +4,28 @@ package inmemory
 import (
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/models"
 	"sync"
-
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage" // Импортируем наш интерфейс
 )
+
+// BlocksStorage определяет интерфейс для взаимодействия с хранилищем данных.
+type BlocksStorage interface {
+	// Методы для добавления данных (принимают срезы, как возвращает парсер)
+	AddBlockOneData(data []models.BlockOne) error
+	AddBlockTwoData(data []models.BlockTwo) error
+	AddBlockThreeData(data []models.BlockThree) error
+
+	// Методы для получения всех данных (возвращают копии для безопасности)
+	GetAllBlockOneData() ([]models.BlockOne, error)
+	GetAllBlockTwoData() ([]models.BlockTwo, error)
+	GetAllBlockThreeData() ([]models.BlockThree, error)
+
+	// Метод для очистки всего хранилища
+	ClearAll() error
+
+	// Можно добавить методы для получения количества записей (опционально)
+	CountBlockOne() int
+	CountBlockTwo() int
+	CountBlockThree() int
+}
 
 //можешно импортировать несколько файлов одного или разных типов, данные будут накапливаться. Кнопка "Очистить хранилище" удалит всё из памяти. Хранятся в InMemoryStore
 //в будущем, если понадобятся данные для графиков или экспорта, соответствующие сервисы (chart, export) также должны будут получить экземпляр BlocksStorage и вызывать методы GetAll...Data().
@@ -20,7 +39,7 @@ type InMemoryStore struct {
 }
 
 // NewStore создает новый экземпляр InMemoryStore.
-func NewStore() storage.BlocksStorage { // Возвращаем интерфейс!
+func NewStore() BlocksStorage { // Возвращаем интерфейс!
 	return &InMemoryStore{
 		blockOneData:   make([]models.BlockOne, 0),
 		blockTwoData:   make([]models.BlockTwo, 0),
