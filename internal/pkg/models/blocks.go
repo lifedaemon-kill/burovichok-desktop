@@ -6,9 +6,13 @@ import "time"
 
 // BlockOne модель для файла "Рзаб и Тзаб".
 type BlockOne struct {
-	Timestamp   time.Time `xlsx:"Дата, время"`                     // колонка A
-	Pressure    float64   `xlsx:"Рзаб на глубине замера, кгс/см2"` // колонка B
-	Temperature float64   `xlsx:"Tзаб на глубине замера, оС"`      // колонка C
+	Timestamp     time.Time `xlsx:"Дата, время"`                     // колонка A
+	PressureDepth float64   `xlsx:"Рзаб на глубине замера, кгс/см2"` // колонка B
+	Temperature   float64   `xlsx:"Tзаб на глубине замера, оС"`      // колонка C
+}
+type BlockOneRich struct {
+	BlockOne
+	PressureVPD float64 //
 }
 
 // BlockTwo соответствует блокам "Загрузка Ртр, Рзтр, Рлин".
@@ -34,35 +38,42 @@ type BlockThree struct {
 	WaterCut   float64   `json:"water_cut"`   // W, %
 	FlowGas    float64   `json:"flow_gas"`    // Qг, тыс. м3/сут
 }
+type BlockThreeRich struct {
+	BlockThree
+	OilFlowRate   float64 // Qн, m/сут Дебит нефти
+	WaterFlowRate float64 // Qв, m/сут Дебит воды
+	GasToOilRatio float64 // ГФ, м3/m Газовый фактор
+}
 
 // Inclinometry BlockFour Инклинометрия
 type Inclinometry struct {
-	DepthMeasured float64 // Метры, Глубина спуска прибора по стволу (MD)
-	DepthVertical float64 // Метры, Глубина спуска прибора по вертикали (TVD)
-	AbsoluteDepth float64 // Метры, Абсолютная отметка (TVDSS)
+	MeasuredDepth           float64 // Метры, Глубина спуска прибора по стволу (MD)
+	TrueVerticalDepth       float64 // Метры, Глубина спуска прибора по вертикали (TVD)
+	TrueVerticalDepthSubSea float64 // Метры, Абсолютная отметка (TVDSS)
 }
 
 //ИНФОРМАЦИОННЫЙ БЛОК
 
 // GeneralInformation BlockFive Общие сведения об исследовании
 type GeneralInformation struct {
-	FieldName                           // Месторождение
-	WellNumber                int       // № скважины
-	ClusterSiteNumber         int       // № кустовой площадки
-	ProductiveHorizon                   // Продуктивный горизонт, пласт
-	StartDate                 time.Time // Дата начала исследования
-	EndDate                   time.Time // Дата окончания исследования
-	InstrumentType                      // Тип прибора
-	InstrumentNumber          int       // № прибора
-	Inclinometry                        // Инклинометрия
-	PerforationDepthMeasured  float64   // Метры, Верхние дыры перфорации по стволу (MD)
-	PerforationDepthVertical  float64   // Метры, Верхние дыры перфорации по вертикали (TVD)
-	DepthDifference           float64   // Метры, Разница между прибором и ВДП по абсолютным отметкам
-	DensityOil                float64   // кгм/м3, Плотность для пересчета дебита нефти
-	DensityLiquidStopped      float64   // кгм/м3, Плотность жидкости для пересчета давления на ВДП в остановленной скважине
-	DensityLiquidWorking      float64   // кгм/м3, Плотность жидкости для пересчета давления на ВДП в работающей скважине
-	PressureDifferenceStopped float64   // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в остановленной скважине
-	PressureDifferenceWorking float64   // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в работающей скважине
+	FieldName                            // Месторождение
+	WellNumber                 int       // № скважины
+	ClusterSiteNumber          int       // № кустовой площадки
+	ProductiveHorizon                    // Продуктивный горизонт, пласт
+	StartDate                  time.Time // Дата начала исследования
+	EndDate                    time.Time // Дата окончания исследования
+	InstrumentType                       // Тип прибора
+	InstrumentNumber           int       // № прибора
+	Inclinometry                         // Инклинометрия
+	VDPMeasuredDepth           float64   // Метры, Верхние дыры перфорации по стволу (MD)
+	VDPTrueVerticalDepth       float64   // Метры, Верхние дыры перфорации по вертикали (TVD)
+	VDPTrueVerticalDepthSubSea float64   // Метры, Верхние дыры перфорации (ВДП) абсолютная отметка (TVDSS)
+	DifferenceInstrumentAndVDP float64   // Метры, Разница между прибором и ВДП по абсолютным отметкам, м
+	DensityOil                 float64   // кгм/м3, Плотность для пересчета дебита нефти
+	DensityLiquidStopped       float64   // кгм/м3, Плотность жидкости для пересчета давления на ВДП в остановленной скважине
+	DensityLiquidWorking       float64   // кгм/м3, Плотность жидкости для пересчета давления на ВДП в работающей скважине
+	PressureDifferenceStopped  float64   // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в остановленной скважине
+	PressureDifferenceWorking  float64   // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в работающей скважине
 }
 
 //СПРАВОЧНИКИ
