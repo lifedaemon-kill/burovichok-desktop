@@ -44,9 +44,9 @@ func (r *ratioLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 
 // Importer умеет парсить три типа блоков.
 type Importer interface {
-	ParseBlockOneFile(path string) ([]models.BlockOne, error)
-	ParseBlockTwoFile(path string) ([]models.BlockTwo, error)
-	ParseBlockThreeFile(path string) ([]models.BlockThree, error)
+	ParseBlockOneFile(path string) ([]models.TableOne, error)
+	ParseBlockTwoFile(path string) ([]models.TableTwo, error)
+	ParseBlockThreeFile(path string) ([]models.TableThree, error)
 }
 
 // Service отвечает за инициализацию и запуск UI приложения.
@@ -85,7 +85,7 @@ func (s *Service) Run() error {
 	})
 
 	// Выбор типа документа
-	docTypes := []string{"BlockOne", "BlockTwo", "BlockThree"}
+	docTypes := []string{"TableOne", "TableTwo", "TableThree"}
 	typeSelect := widget.NewSelect(docTypes, func(string) {})
 	typeSelect.PlaceHolder = "Выберите тип документа"
 
@@ -107,7 +107,7 @@ func (s *Service) Run() error {
 		var storeErr error
 
 		switch docType {
-		case "BlockOne":
+		case "TableOne":
 			data, parseErr := s.importer.ParseBlockOneFile(path)
 			if parseErr != nil {
 				err = parseErr // Приоритет у ошибки парсинга
@@ -115,7 +115,7 @@ func (s *Service) Run() error {
 				count = len(data)
 				storeErr = s.store.AddBlockOneData(data) // <-- Сохраняем данные в хранилище
 			}
-		case "BlockTwo":
+		case "TableTwo":
 			data, parseErr := s.importer.ParseBlockTwoFile(path)
 			if parseErr != nil {
 				err = parseErr
@@ -123,7 +123,7 @@ func (s *Service) Run() error {
 				count = len(data)
 				storeErr = s.store.AddBlockTwoData(data) // <-- Сохраняем данные в хранилище
 			}
-		case "BlockThree":
+		case "TableThree":
 			data, parseErr := s.importer.ParseBlockThreeFile(path)
 			if parseErr != nil {
 				err = parseErr
@@ -151,11 +151,11 @@ func (s *Service) Run() error {
 		// Получаем текущее общее количество записей в хранилище (опционально, для информации)
 		totalCount := 0
 		switch docType {
-		case "BlockOne":
+		case "TableOne":
 			totalCount = s.store.CountBlockOne()
-		case "BlockTwo":
+		case "TableTwo":
 			totalCount = s.store.CountBlockTwo()
-		case "BlockThree":
+		case "TableThree":
 			totalCount = s.store.CountBlockThree()
 		}
 

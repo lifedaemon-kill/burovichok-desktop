@@ -19,30 +19,21 @@ func NewService() *Service {
 	return &Service{}
 }
 
-func (s *Service) CalcBlockOne(table []models.BlockOne) []models.BlockOneRich {
-	// rich := make([]models.BlockOneRich, len(table))
-
-	// for i, value := range table {
-	// 	//TODO
-	// 	rich[i].PressureVPD = 0
-	// }
+func (s *Service) CalcBlockOne(table []models.TableOne) []models.TableOne {
 	return nil
 }
 
-func (s *Service) CalcBlockThree(table []models.BlockThree) []models.BlockThreeRich {
-	// rich := make([]models.BlockThreeRich, len(table))
-
+func (s *Service) CalcBlockThree(table []models.TableThree) []models.TableThree {
 	// for i, value := range table {
 	// 	//TODO
-	// 	rich[i].OilFlowRate = 0
-	// 	rich[i].WaterFlowRate = 0
-	// 	rich[i].GasToOilRatio = 0
+	//  table[i].OilFlowRate = 0
+	// 	table[i].WaterFlowRate = 0
+	// 	table[i].GasToOilRatio = 0
 	// }
 	return nil
 }
 
 func (s *Service) CalcBlockFive(table []models.GeneralInformation) []models.GeneralInformation {
-
 	// for i, value := range table {
 	// 	//TODO
 	// 	table[i].TrueVerticalDepth = 0

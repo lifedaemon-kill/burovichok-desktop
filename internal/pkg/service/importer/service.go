@@ -20,8 +20,8 @@ func NewService() *Service {
 	return &Service{}
 }
 
-// ParseBlockOneFile читает XLSX‑файл через xlsxreader и возвращает []BlockOne.
-func (s *Service) ParseBlockOneFile(path string) ([]models.BlockOne, error) {
+// ParseBlockOneFile читает XLSX‑файл через xlsxreader и возвращает []TableOne.
+func (s *Service) ParseBlockOneFile(path string) ([]models.TableOne, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "read file %s", path)
@@ -31,7 +31,7 @@ func (s *Service) ParseBlockOneFile(path string) ([]models.BlockOne, error) {
 		return nil, errors.Wrap(err, "xlsxreader.NewReader")
 	}
 
-	var out []models.BlockOne
+	var out []models.TableOne
 	for row := range xl.ReadRows(xl.Sheets[0]) {
 		if row.Index == 1 {
 			continue
@@ -52,13 +52,13 @@ func (s *Service) ParseBlockOneFile(path string) ([]models.BlockOne, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "parse temperature block1 row %d", row.Index)
 		}
-		out = append(out, models.BlockOne{Timestamp: ts, PressureDepth: pres, Temperature: temp})
+		out = append(out, models.TableOne{Timestamp: ts, PressureDepth: pres, Temperature: temp})
 	}
 	return out, nil
 }
 
-// ParseBlockTwoFile читает XLSX‑файл и возвращает []BlockTwo.
-func (s *Service) ParseBlockTwoFile(path string) ([]models.BlockTwo, error) {
+// ParseBlockTwoFile читает XLSX‑файл и возвращает []TableTwo.
+func (s *Service) ParseBlockTwoFile(path string) ([]models.TableTwo, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "read file %s", path)
@@ -68,7 +68,7 @@ func (s *Service) ParseBlockTwoFile(path string) ([]models.BlockTwo, error) {
 		return nil, errors.Wrap(err, "xlsxreader.NewReader")
 	}
 
-	var out []models.BlockTwo
+	var out []models.TableTwo
 	for row := range xl.ReadRows(xl.Sheets[0]) {
 		if row.Index <= 2 {
 			continue
@@ -105,7 +105,7 @@ func (s *Service) ParseBlockTwoFile(path string) ([]models.BlockTwo, error) {
 			return nil, errors.Wrapf(err, "parse linear pressure row %d", row.Index)
 		}
 
-		out = append(out, models.BlockTwo{
+		out = append(out, models.TableTwo{
 			TimestampTubing:  tsTub,
 			PressureTubing:   presTub,
 			TimestampAnnulus: tsAnn,
@@ -117,8 +117,8 @@ func (s *Service) ParseBlockTwoFile(path string) ([]models.BlockTwo, error) {
 	return out, nil
 }
 
-// ParseBlockThreeFile читает XLSX‑файл и возвращает []BlockThree.
-func (s *Service) ParseBlockThreeFile(path string) ([]models.BlockThree, error) {
+// ParseBlockThreeFile читает XLSX‑файл и возвращает []TableThree.
+func (s *Service) ParseBlockThreeFile(path string) ([]models.TableThree, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "read file %s", path)
@@ -128,7 +128,7 @@ func (s *Service) ParseBlockThreeFile(path string) ([]models.BlockThree, error) 
 		return nil, errors.Wrap(err, "xlsxreader.NewReader")
 	}
 
-	var out []models.BlockThree
+	var out []models.TableThree
 	for row := range xl.ReadRows(xl.Sheets[0]) {
 		// пропускаем заголовок
 		if row.Index == 1 {
@@ -155,7 +155,7 @@ func (s *Service) ParseBlockThreeFile(path string) ([]models.BlockThree, error) 
 			return nil, errors.Wrapf(err, "parse flow gas row %d", row.Index)
 		}
 
-		out = append(out, models.BlockThree{
+		out = append(out, models.TableThree{
 			Timestamp:  ts,
 			FlowLiquid: flowL,
 			WaterCut:   wc,
