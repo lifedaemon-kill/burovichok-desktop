@@ -2,7 +2,9 @@ package models
 
 import "time"
 
-// BlockOne модель для файла  "Рзаб и Тзаб".
+//ФУНКЦИОНАЛЬНЫЕ БЛОКИ
+
+// BlockOne модель для файла "Рзаб и Тзаб".
 type BlockOne struct {
 	Timestamp   time.Time `xlsx:"Дата, время"`                     // колонка A
 	Pressure    float64   `xlsx:"Рзаб на глубине замера, кгс/см2"` // колонка B
@@ -36,11 +38,41 @@ type BlockThree struct {
 type BlockFour struct {
 }
 
+//ИНФОРМАЦИОННЫЙ БЛОК
+
+// BlockFive Общие сведения об исследовании
 type BlockFive struct {
+	FieldName                 FieldName         // Месторождение
+	WellNumber                int               // № скважины
+	ClusterSiteNumber         int               // № кустовой площадки
+	ProductiveHorizon         ProductiveHorizon // Продуктивный горизонт, пласт
+	StartDate                 time.Time         // Дата начала исследования
+	EndDate                   time.Time         // Дата окончания исследования
+	InstrumentType            InstrumentType    // Тип прибора
+	InstrumentNumber          int               // № прибора
+	DepthMeasured             float64           // Метры, Глубина спуска прибора по стволу (MD)
+	DepthVertical             float64           // Метры, Глубина спуска прибора по вертикали (TVD)
+	AbsoluteDepth             float64           // Метры, Абсолютная отметка (TVDSS)
+	PerforationDepthMeasured  float64           // Метры, Верхние дыры перфорации по стволу (MD)
+	PerforationDepthVertical  float64           // Метры, Верхние дыры перфорации по вертикали (TVD)
+	DepthDifference           float64           // Метры, Разница между прибором и ВДП по абсолютным отметкам
+	DensityOil                float64           // кгм/м3, Плотность для пересчета дебита нефти
+	DensityLiquidStopped      float64           // кгм/м3, Плотность жидкости для пересчета давления на ВДП в остановленной скважине
+	DensityLiquidWorking      float64           // кгм/м3, Плотность жидкости для пересчета давления на ВДП в работающей скважине
+	PressureDifferenceStopped float64           // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в остановленной скважине
+	PressureDifferenceWorking float64           // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в работающей скважине
 }
 
-type BlockSix struct {
-}
+//СПРАВОЧНИКИ
 
-type BlockSeven struct {
-}
+// ProductiveHorizon BlockSix Продуктивный горизонт, пласт
+// Б1 Б2 Б3...
+type ProductiveHorizon string
+
+// FieldName BlockSeven Наименование месторождений
+// Куюмбинское Юрубчено-Тохомское Ванкорское
+type FieldName string
+
+// InstrumentType BlockEight Тип приборов для замеров давления и температуры
+// ГС-АМТС PPS 25 КАМА-2
+type InstrumentType string
