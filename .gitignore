@@ -23,5 +23,3 @@ go.work.sum
 .env
 
 .idea
-
-/test_data/*
