@@ -3,10 +3,10 @@ env: prod
 logger:
   env: prod  # prod или dev отвечает за уровень логирования
 
-db:
-  dsn: "user= dbname= password= sslmode= host= port="
-
 ui:
   name: "burovichok"
   width: 800
   height: 400
+  
+db:
+  dsn: "tests/database/example.db"

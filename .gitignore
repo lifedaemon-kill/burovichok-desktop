@@ -24,4 +24,4 @@ go.work.sum
 
 .idea
 
-/test_data/*
+config/values_local.yaml

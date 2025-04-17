@@ -1,0 +1,2 @@
+db:
+  dsn: "tests/database/example.db"
