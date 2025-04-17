@@ -13,6 +13,7 @@ import (
 
 type calcService interface {
 	CalcTableOne(rec models.TableOne, cfg models.OperationConfig) models.TableOne
+	CalcBlockThree(tbl models.TableThree) models.TableThree
 }
 
 type converterService interface {
@@ -177,12 +178,16 @@ func (s *Service) ParseBlockThreeFile(path string) ([]models.TableThree, error) 
 			return nil, errors.Wrapf(err, "parse flow gas row %d", row.Index)
 		}
 
-		out = append(out, models.TableThree{
+		res := models.TableThree{
 			Timestamp:  ts,
 			FlowLiquid: flowL,
 			WaterCut:   wc,
 			FlowGas:    flowG,
-		})
+		}
+
+		res = s.calc.CalcBlockThree(res)
+
+		out = append(out, res)
 	}
 	return out, nil
 }

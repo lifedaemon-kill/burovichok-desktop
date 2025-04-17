@@ -48,14 +48,33 @@ func (s *Service) CalcTableOne(rec models.TableOne, cfg models.OperationConfig) 
 	return rec
 }
 
-func (s *Service) CalcBlockThree(table []models.TableThree) []models.TableThree {
-	// for i, value := range table {
-	// 	//TODO
-	//  table[i].OilFlowRate = 0
-	// 	table[i].WaterFlowRate = 0
-	// 	table[i].GasToOilRatio = 0
-	// }
-	return nil
+// CalcBlockThree рассчитывает дебиты нефти (Qн), воды (Qв) и газовый фактор (ГФ)
+// на основании входных данных TableThree:
+//
+//	FlowLiquid — общий дебит жидкости Qж, м³/сут
+//	WaterCut    — обводненность W, %
+//	FlowGas     — дебит газа Qг, тыс. м³/сут
+func (s *Service) CalcBlockThree(tbl models.TableThree) models.TableThree {
+	// 1) вычисляем дебит воды Qв = Qж * W/100
+	waterRate := tbl.FlowLiquid * tbl.WaterCut / 100.0
+
+	// 2) вычисляем дебит нефти Qн = Qж – Qв
+	oilRate := tbl.FlowLiquid - waterRate
+
+	// 3) вычисляем газовый фактор ГФ = (Qг * 1000) / Qн
+	//    (умножаем Qг на 1000, чтобы перевести из тыс. м³/сут в м³/сут)
+	var gfPtr *float64
+	if oilRate > 0 {
+		gf := (tbl.FlowGas * 1000.0) / oilRate
+		gfPtr = &gf
+	}
+
+	// 4) сохраняем результаты в исходную структуру
+	tbl.WaterFlowRate = &waterRate
+	tbl.OilFlowRate = &oilRate
+	tbl.GasToOilRatio = gfPtr
+
+	return tbl
 }
 
 func (s *Service) CalcBlockFive(table []models.GeneralInformation) []models.GeneralInformation {
