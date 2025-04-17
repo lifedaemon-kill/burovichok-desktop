@@ -186,3 +186,62 @@ func (s *Service) ParseBlockThreeFile(path string) ([]models.TableThree, error) 
 	}
 	return out, nil
 }
+
+// ParseBlockFourFile читает XLSX‑файл и возвращает []Inclinometry.
+func (s *Service) ParseBlockFourFile(path string) ([]models.Inclinometry, error) {
+	// 1) читаем файл
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "read file %s", path)
+	}
+
+	// 2) создаём ридер xlsxreader
+	xl, err := xlsxreader.NewReader(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "xlsxreader.NewReader")
+	}
+
+	var out []models.Inclinometry
+
+	// 3) перебираем все строки на первом листе
+	for row := range xl.ReadRows(xl.Sheets[0]) {
+		// пропускаем заголовки и строку с единицами (Excel: строки 1–4)
+		if row.Index <= 4 {
+			continue
+		}
+
+		cells := row.Cells
+		// нужно минимум 10 колонок (0…9) для наших трёх полей
+		if len(cells) < 10 {
+			continue
+		}
+
+		// 4) парсим MeasuredDepth (колонка A / cells[0])
+		md, err := strconv.ParseFloat(cells[0].Value, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse MeasuredDepth block4 row %d", row.Index)
+		}
+
+		// 5) парсим TrueVerticalDepth (колонка I / cells[8])
+		tvd, err := strconv.ParseFloat(cells[8].Value, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse TrueVerticalDepth block4 row %d", row.Index)
+		}
+
+		// 6) парсим TrueVerticalDepthSubSea (колонка J / cells[9])
+		tvdss, err := strconv.ParseFloat(cells[9].Value, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse TrueVerticalDepthSubSea block4 row %d", row.Index)
+		}
+
+		// 7) собираем запись и добавляем в выходной срез
+		rec := models.Inclinometry{
+			MeasuredDepth:           md,
+			TrueVerticalDepth:       tvd,
+			TrueVerticalDepthSubSea: tvdss,
+		}
+		out = append(out, rec)
+	}
+
+	return out, nil
+}

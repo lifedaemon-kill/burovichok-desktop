@@ -8,6 +8,7 @@ type Storage interface {
 	AddBlockOneData(data []models.TableOne) error
 	AddBlockTwoData(data []models.TableTwo) error
 	AddBlockThreeData(data []models.TableThree) error
+	AddBlockFourData(data []models.Inclinometry) error
 
 	// Методы для получения всех данных (возвращают копии для безопасности)
 	GetAllBlockOneData() ([]models.TableOne, error)

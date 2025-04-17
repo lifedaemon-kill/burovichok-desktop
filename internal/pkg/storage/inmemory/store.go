@@ -17,6 +17,7 @@ type InMemoryStore struct {
 	blockOneData   []models.TableOne
 	blockTwoData   []models.TableTwo
 	blockThreeData []models.TableThree
+	inclinometry   []models.Inclinometry
 }
 
 // NewStore создает новый экземпляр InMemoryStore.
@@ -25,6 +26,7 @@ func NewStore() storage.Storage { // Возвращаем интерфейс!
 		blockOneData:   make([]models.TableOne, 0),
 		blockTwoData:   make([]models.TableTwo, 0),
 		blockThreeData: make([]models.TableThree, 0),
+		inclinometry:   make([]models.Inclinometry, 0),
 	}
 }
 
@@ -109,4 +111,11 @@ func (s *InMemoryStore) CountBlockThree() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.blockThreeData)
+}
+
+func (s *InMemoryStore) AddBlockFourData(data []models.Inclinometry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.inclinometry = append(s.inclinometry, data...)
+	return nil // В in-memory обычно нет ошибок добавления, кроме нехватки памяти (panic)
 }

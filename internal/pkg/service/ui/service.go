@@ -23,6 +23,7 @@ type importer interface {
 	ParseBlockOneFile(path string, cfg models.OperationConfig) ([]models.TableOne, error)
 	ParseBlockTwoFile(path string) ([]models.TableTwo, error)
 	ParseBlockThreeFile(path string) ([]models.TableThree, error)
+	ParseBlockFourFile(path string) ([]models.Inclinometry, error)
 }
 
 type converterService interface {
@@ -96,7 +97,7 @@ func (s *Service) Run() error {
 	})
 
 	// 2) выбор типа документа
-	docTypes := []string{"TableOne", "TableTwo", "TableThree"}
+	docTypes := []string{"TableOne", "TableTwo", "TableThree", "TableFour"}
 	typeSelect := widget.NewSelect(docTypes, nil)
 	typeSelect.PlaceHolder = "Выберите тип документа"
 
@@ -315,6 +316,16 @@ func (s *Service) doGenericImport(path, typ string) {
 		count = len(data)
 		if err == nil {
 			err = s.store.AddBlockThreeData(data)
+		}
+
+	case "TableFour":
+		// Инклинометрия
+		var data []models.Inclinometry
+		data, err = s.importer.ParseBlockFourFile(path)
+		count = len(data)
+		if err == nil {
+			// Реализуйте в Storage метод AddBlockFourData
+			err = s.store.AddBlockFourData(data)
 		}
 	}
 
