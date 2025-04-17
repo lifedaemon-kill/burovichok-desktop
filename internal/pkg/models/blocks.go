@@ -2,82 +2,68 @@ package models
 
 import "time"
 
-//ФУНКЦИОНАЛЬНЫЕ БЛОКИ
-
-// TableOne соответствует блоку 1: "Загрузка Рзаб и Тзаб".
-type TableOne struct {
-	Timestamp     time.Time `xlsx:"Дата, время"`                     // колонка A
-	PressureDepth float64   `xlsx:"Рзаб на глубине замера, кгс/см2"` // колонка B
-	Temperature   float64   `xlsx:"Tзаб на глубине замера, оС"`      // колонка C
-	PressureVPD   *float64  //
+// BlockOne — Блок 1. Загрузка забойного давления и температуры
+// Поля соответствуют колонкам Excel через теги xlsx
+type BlockOne struct {
+	Timestamp        time.Time `xlsx:"Дата, время"`                     // колонка A
+	PressureDepth    float64   `xlsx:"Рзаб на глубине замера, кгс/см2"` // колонка B
+	TemperatureDepth float64   `xlsx:"Tзаб на глубине замера, °C"`      // колонка C
+	PressureAtVDP    *float64  // расчётное поле
 }
 
-// TableTwo соответствует блоку 2: "Загрузка Ртр, Рзтр, Рлин".
-// Каждая запись содержит три замера давления с их временными метками.
-type TableTwo struct {
-	// Замер давления в трубном пространстве
-	TimestampTubing time.Time `json:"timestamp_tubing"` // из колонки A: «Дата, время»
-	PressureTubing  float64   `json:"pressure_tubing"`  // из колонки B: «Ртр, кгс/см2»
-
-	// Замер давления в затрубном пространстве
-	TimestampAnnulus time.Time `json:"timestamp_annulus"` // из колонки C: «Дата, время»
-	PressureAnnulus  float64   `json:"pressure_annulus"`  // из колонки D: «Рзтр, кгс/см2»
-
-	// Замер линейного давления
-	TimestampLinear time.Time `json:"timestamp_linear"` // из колонки E: «Дата, время»
-	PressureLinear  float64   `json:"pressure_linear"`  // из колонки F: «Рлин, кгс/см2»
+// BlockTwo — Блок 2. Замеры трубного, затрубного и линейного давления
+type BlockTwo struct {
+	TimestampTubing  time.Time `xlsx:"Дата трубного замера, Дата, время"`   // колонка A
+	PressureTubing   float64   `xlsx:"Ртр, кгс/см2"`                        // колонка B
+	TimestampAnnulus time.Time `xlsx:"Дата затрубного замера, Дата, время"` // колонка C
+	PressureAnnulus  float64   `xlsx:"Рзтр, кгс/см2"`                       // колонка D
+	TimestampLinear  time.Time `xlsx:"Дата линейного замера, Дата, время"`  // колонка E
+	PressureLinear   float64   `xlsx:"Рлин, кгс/см2"`                       // колонка F
 }
 
-// TableThree соответствует блоку 3: "Данные по дебитам".
-type TableThree struct {
-	Timestamp     time.Time `json:"timestamp"`
-	FlowLiquid    float64   `json:"flow_liquid"` // Qж, м3/сут
-	WaterCut      float64   `json:"water_cut"`   // W, %
-	FlowGas       float64   `json:"flow_gas"`    // Qг, тыс. м3/сут
-	OilFlowRate   *float64  // Qн, m/сут Дебит нефти
-	WaterFlowRate *float64  // Qв, m/сут Дебит воды
-	GasToOilRatio *float64  // ГФ, м3/m Газовый фактор
-
+// BlockThree — Блок 3. Дебиты жидкости, воды, газа и расчётные поля
+type BlockThree struct {
+	Timestamp     time.Time `xlsx:"Дата, время"`    // колонка A
+	FlowLiquid    float64   `xlsx:"Qж, м3/сут"`     // колонка B
+	WaterCut      float64   `xlsx:"W, %"`           // колонка C
+	FlowGas       float64   `xlsx:"Qг, тыс.м3/сут"` // колонка D
+	OilFlowRate   *float64  // Qн, расчётное поле
+	WaterFlowRate *float64  // Qв, расчётное поле
+	GasOilRatio   *float64  // ГФ, расчётное поле
 }
 
-// Inclinometry BlockFour соответствует блоку 4: Инклинометрия.
-type Inclinometry struct {
-	MeasuredDepth           float64 // Метры, Глубина спуска прибора по стволу (MD)
-	TrueVerticalDepth       float64 // Метры, Глубина спуска прибора по вертикали (TVD)
-	TrueVerticalDepthSubSea float64 // Метры, Абсолютная отметка (TVDSS)
+// BlockFour — Блок 4. Инклинометрия (MD, TVD, TVDSS)
+type BlockFour struct {
+	MeasuredDepth           float64 `xlsx:"Глубина по стволу, м"`    // MD
+	TrueVerticalDepth       float64 `xlsx:"Глубина по вертикали, м"` // TVD
+	TrueVerticalDepthSubSea float64 `xlsx:"Абсолютная глубина, м"`   // TVDSS
 }
 
-//ИНФОРМАЦИОННЫЙ БЛОК
-
-// GeneralInformation BlockFive Общие сведения об исследовании.
-type GeneralInformation struct {
-	OilPlaces                  OilPlaces         // Месторождение
-	WellNumber                 int               // № скважины
-	ClusterSiteNumber          int               // № кустовой площадки
-	ProductiveHorizon          ProductiveHorizon // Продуктивный горизонт, пласт
-	StartDate                  time.Time         // Дата начала исследования
-	EndDate                    time.Time         // Дата окончания исследования
-	InstrumentType             InstrumentType    // Тип прибора
-	InstrumentNumber           int               // № прибора
-	Inclinometry               Inclinometry      // Инклинометрия
-	VDPMeasuredDepth           float64           // Метры, Верхние дыры перфорации по стволу (MD)
-	VDPTrueVerticalDepth       *float64          // Метры, Верхние дыры перфорации по вертикали (TVD)
-	VDPTrueVerticalDepthSubSea *float64          // Метры, Верхние дыры перфорации (ВДП) абсолютная отметка (TVDSS)
-	DifferenceInstrumentAndVDP *float64          // Метры, Разница между прибором и ВДП по абсолютным отметкам, м
-	DensityOil                 float64           // кгм/м3, Плотность для пересчета дебита нефти
-	DensityLiquidStopped       float64           // кгм/м3, Плотность жидкости для пересчета давления на ВДП в остановленной скважине
-	DensityLiquidWorking       float64           // кгм/м3, Плотность жидкости для пересчета давления на ВДП в работающей скважине
-	PressureDifferenceStopped  *float64          // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в остановленной скважине
-	PressureDifferenceWorking  *float64          // Единицы, выбранные при импорте Рзаб, Разница между давлением на глубине замера и ВДП в работающей скважине
+// BlockFive — Блок 5. Общие сведения об исследовании
+// Поля берутся из формы или справочников, поэтому xlsx-тегов нет
+type BlockFive struct {
+	Field                   OilField          // Месторождение
+	WellNumber              int               // № скважины
+	ClusterNumber           int               // № кустовой площадки
+	Horizon                 ProductiveHorizon // Продуктивный горизонт
+	StartTime               time.Time         // Дата начала исследования
+	EndTime                 time.Time         // Дата окончания исследования
+	InstrumentType          InstrumentType    // Тип прибора
+	InstrumentNumber        int               // № прибора
+	Inclinometry            BlockFour         // Данные инклинометрии
+	VDPMeasuredDepth        float64           // MD ВДП
+	VDPTrueVerticalDepth    *float64          // TVD ВДП, расчётное
+	VDPTrueVerticalDepthSea *float64          // TVDSS ВДП, расчётное
+	DiffInstrumentVDP       *float64          // Разница отметок, расчётное
+	DensityOil              float64           // Плотность для дебита нефти, кг/м3
+	DensityLiquidStopped    float64           // Плотность жидкости в простое, кг/м3
+	DensityLiquidWorking    float64           // Плотность жидкости в работе, кг/м3
+	PressureDiffStopped     *float64          // ΔP простоя, расчётное
+	PressureDiffWorking     *float64          // ΔP работы, расчётное
 }
 
-//СПРАВОЧНИКИ
+// Справочники
 
-// ProductiveHorizon BlockSix Продуктивный горизонт, пласт.
-type ProductiveHorizon string // Б1 Б2 Б3...
-
-// OilPlaces BlockSeven Наименование месторождений
-type OilPlaces string // Куюмбинское Юрубчено-Тохомское Ванкорское.
-
-// InstrumentType BlockEight Тип приборов для замеров давления и температуры.
-type InstrumentType string // ГС-АМТС PPS 25 КАМА-2
+type ProductiveHorizon string // Б1, Б2, Б3...
+type OilField string          // Наименование месторождения
+type InstrumentType string    // Тип прибора, например, ГС-АМТС, PPS 25, КАМА-2
