@@ -70,7 +70,7 @@ func bootstrap(ctx context.Context) error {
 		return err
 	}
 	// Применяем миграции
-	if err = goose.Run("up", db.DB, conf.DB.MigrationsPath); err != nil {
+	if err = goose.RunContext(ctx, "up", db.DB, conf.DB.MigrationsPath); err != nil {
 		zLog.Errorw("goose.Run up", "error", err)
 		return err
 	}

@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

@@ -15,9 +15,8 @@ type sqlite struct {
 func NewDB(conf config.DBConf) (*sqlx.DB, error) {
 	db, err := sqlx.Open("sqlite3", conf.DSN)
 	if err != nil {
-		return nil, errors.Wrapf(err, "sqlite.NewDB")
+		return nil, errors.Wrapf(err, "sqlite.NewDB.Open")
 	}
-	err = db.Ping()
 
 	return db, err
 }
