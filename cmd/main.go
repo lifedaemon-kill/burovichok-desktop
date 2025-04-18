@@ -2,6 +2,11 @@ package main
 
 import (
 	"context"
+	"log"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
 	calcService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/calc"
 	converterService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/convertor"
@@ -10,10 +15,6 @@ import (
 	uiService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/ui"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/sqlite"
-	"log"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/cockroachdb/errors"
 
@@ -63,11 +64,11 @@ func bootstrap(ctx context.Context) error {
 	zLog.Infow("Database initialized successfully")
 
 	// Применяем миграции
-	if err = goose.Up(db.DB, conf.DB.MigrationsPath); err != nil {
-		zLog.Errorw("goose.Up", "error", err)
+	if err = goose.Run("up", db.DB, conf.DB.MigrationsPath); err != nil {
+		zLog.Errorw("goose.Run up", "error", err)
 		return err
 	}
-	zLog.Infow("Migrations initialized successfully")
+	zLog.Infow("Migrations applied successfully")
 
 	dbService, err := database.NewService(db, zLog)
 
