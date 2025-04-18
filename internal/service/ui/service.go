@@ -2,14 +2,18 @@ package ui
 
 import (
 	"fmt"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/database"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/database"
+
+	chartService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/chart"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
@@ -40,12 +44,14 @@ type Service struct {
 	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage
 	db               database.Service
 	converter        converterService
+	chart            chartService.Service
 }
 
 // NewService создаёт новый UI‑сервис.
 func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService,
-	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db database.Service) *Service {
+	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db database.Service, chart chartService.Service) *Service {
 	a := app.New()
+	chartSvc := chartService.NewService()
 	win := a.NewWindow(title)
 	win.Resize(fyne.NewSize(float32(w), float32(h)))
 	return &Service{
@@ -56,6 +62,7 @@ func NewService(title string, w, h int, zLog logger.Logger, imp importer, conver
 		memBlocksStorage: memBlocksStorage,
 		db:               db,
 		converter:        converter,
+		chart:            chartSvc,
 	}
 }
 
@@ -84,6 +91,44 @@ func (r *ratioLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 
 // Run строит интерфейс и запускает приложение.
 func (s *Service) Run() error {
+
+	chartBtn := widget.NewButton("График T/P (Блок 1)", func() {
+		blockOneData, err := s.memBlocksStorage.GetAllBlockOneData()
+		if err != nil {
+			// ... обработка ошибки получения данных ...
+			s.zLog.Errorw("Failed to get BlockOne data for chart", "error", err)
+			dialog.ShowError(fmt.Errorf("не удалось получить данные Блока 1: %w", err), s.window)
+			return
+		}
+		if len(blockOneData) < 2 { // Проверяем наличие достаточного количества точек
+			dialog.ShowInformation("Нет данных", "Недостаточно данных для построения графика (нужно >1 точки)", s.window)
+			return
+		}
+
+		// Генерируем график с помощью chart сервиса (теперь он возвращает image.Image)
+		chartImage, err := s.chart.GeneratePressureTempChart(blockOneData)
+		if err != nil {
+			// ... обработка ошибки генерации графика ...
+			s.zLog.Errorw("Failed to generate chart", "error", err)
+			dialog.ShowError(fmt.Errorf("ошибка построения графика: %w", err), s.window)
+			return
+		}
+
+		// Создаем Fyne объект image из сгенерированной картинки
+		fyneImage := canvas.NewImageFromImage(chartImage)
+		fyneImage.FillMode = canvas.ImageFillContain   // Режим заполнения, чтобы сохранить пропорции
+		fyneImage.ScaleMode = canvas.ImageScaleFastest // Режим масштабирования
+		fyneImage.SetMinSize(fyne.NewSize(600, 400))   // Минимальный размер, чтобы было видно
+
+		// Показываем график в новом окне
+		chartWindow := s.app.NewWindow("График Давления/Температуры (Блок 1)")
+		// Помещаем картинку в контейнер с прокруткой, на случай если она большая
+		scrollContainer := container.NewScroll(fyneImage)
+		chartWindow.SetContent(scrollContainer)
+		chartWindow.Resize(fyne.NewSize(800, 600)) // Размер окна графика
+		chartWindow.Show()
+	})
+
 	// 1) поле выбора файла + кнопка
 	pathEntry := widget.NewEntry()
 	pathEntry.PlaceHolder = "Файл не выбран"
@@ -144,6 +189,7 @@ func (s *Service) Run() error {
 		header,
 		typeSelect,
 		importBtn,
+		chartBtn,
 		widget.NewSeparator(),
 		clearBtn,
 	)
