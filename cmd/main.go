@@ -77,6 +77,11 @@ func bootstrap(ctx context.Context) error {
 	zLog.Infow("Migrations applied successfully")
 
 	dbService, err := database.NewService(db, zLog)
+	if err != nil { // Добавил проверку ошибки, на всякий случай
+		zLog.Errorw("database.NewService", "error", err)
+		return err
+	}
+
 	chartSvc := chartService.NewService() // <-- Создаем сервис графиков
 
 	ui := uiService.NewService(conf.UI.Name, conf.UI.Width, conf.UI.Height, zLog, importer, converter, inMemoryBlocksStorage, dbService, chartSvc)
