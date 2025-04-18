@@ -2,19 +2,19 @@ package main
 
 import (
 	"context"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
+	calcService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/calc"
+	converterService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/convertor"
+	importerService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/importer"
+	uiService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/ui"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
 	"log"
 	"os/signal"
 	"syscall"
 
 	"github.com/cockroachdb/errors"
 
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/config"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
-	calcService "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/service/calc"
-	converterService "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/service/convertor"
-	importerService "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/service/importer"
-	uiService "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/service/ui"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/storage/inmemory"
 )
 
 func main() {
@@ -44,7 +44,7 @@ func bootstrap(ctx context.Context) error {
 	calc := calcService.NewService()
 	importer := importerService.NewService(calc, converter)
 
-	store := inmemory.NewStore()
+	store := inmemory.NewInMemoryBlocksStorage()
 
 	ui := uiService.NewService(conf.UI.Name, conf.UI.Width, conf.UI.Height, zLog, importer, converter, store)
 	if err := ui.Run(); err != nil {
