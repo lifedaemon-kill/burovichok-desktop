@@ -66,18 +66,15 @@ type TableFive struct {
 
 // ProductiveHorizon Б1, Б2, Б3...
 type ProductiveHorizon struct {
-	id   int32  `db:"id"`
-	name string `db:"name"`
+	Name string `db:"name"`
 }
 
 // OilField Наименование месторождения
 type OilField struct {
-	id   int32  `db:"id"`
-	name string `db:"name"`
+	Name string `db:"name"`
 }
 
 // InstrumentType Тип прибора, например, ГС-АМТС, PPS 25, КАМА-2
 type InstrumentType struct {
-	id   int32  `db:"id"`
-	name string `db:"name"`
+	Name string `db:"name"`
 }

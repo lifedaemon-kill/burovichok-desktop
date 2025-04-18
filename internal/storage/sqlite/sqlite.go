@@ -9,7 +9,7 @@ import (
 )
 
 type sqlite struct {
-	DB *sqlx.DB
+	db *sqlx.DB
 }
 
 func NewDB(conf config.DBConf) (*sqlx.DB, error) {
@@ -23,25 +23,16 @@ func NewDB(conf config.DBConf) (*sqlx.DB, error) {
 }
 
 type GuidebooksStorage interface {
-	AddOilPlaces([]models.OilField) error
+	AddOilField([]models.OilField) error
 	AddInstrumentType([]models.InstrumentType) error
 	AddProductiveHorizon([]models.ProductiveHorizon) error
 
-	GetAllOilPlaces() ([]models.OilField, error)
+	GetAllOilField() ([]models.OilField, error)
 	GetAllInstrumentType() ([]models.InstrumentType, error)
 	GetAllProductiveHorizon() ([]models.ProductiveHorizon, error)
 }
 
 type BlocksStorage interface {
-	GetTableOneByReportID() ([]models.TableOne, error)
-	GetTableTwoByReportID() ([]models.TableTwo, error)
-	GetTableThreeByReportID() ([]models.TableThree, error)
-	GetTableFourByReportID() ([]models.TableFour, error)
-	GetTableFive() ([]models.TableFive, error)
-
-	AddBlockOne(data []models.TableOne, reportID int32) error
-	AddBlockTwo(data []models.TableTwo, reportID int32) error
-	AddBlockThree(data []models.TableThree, reportID int32) error
-	AddBlockFour(data []models.TableFour, reportID int32) error
-	AddBlockFive(data []models.TableFive) (reportID int32, err error)
+	GetAllTableFive() ([]models.TableFive, error)
+	AddBlockFive(data models.TableFive) (reportID int32, err error)
 }
