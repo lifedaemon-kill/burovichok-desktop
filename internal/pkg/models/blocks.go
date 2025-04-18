@@ -42,28 +42,42 @@ type TableFour struct {
 // TableFive — Блок 5. Общие сведения об исследовании
 // Поля берутся из формы или справочников, поэтому xlsx-тегов нет
 type TableFive struct {
-	Field                   OilField          // Месторождение
-	WellNumber              int               // № скважины
-	ClusterNumber           int               // № кустовой площадки
-	Horizon                 ProductiveHorizon // Продуктивный горизонт
-	StartTime               time.Time         // Дата начала исследования
-	EndTime                 time.Time         // Дата окончания исследования
-	InstrumentType          InstrumentType    // Тип прибора
-	InstrumentNumber        int               // № прибора
-	Inclinometry            TableFour         // Данные инклинометрии
-	VDPMeasuredDepth        float64           // MD ВДП
-	VDPTrueVerticalDepth    *float64          // TVD ВДП, расчётное
-	VDPTrueVerticalDepthSea *float64          // TVDSS ВДП, расчётное
-	DiffInstrumentVDP       *float64          // Разница отметок, расчётное
-	DensityOil              float64           // Плотность для дебита нефти, кг/м3
-	DensityLiquidStopped    float64           // Плотность жидкости в простое, кг/м3
-	DensityLiquidWorking    float64           // Плотность жидкости в работе, кг/м3
-	PressureDiffStopped     *float64          // ΔP простоя, расчётное
-	PressureDiffWorking     *float64          // ΔP работы, расчётное
+	Field                   string    // Месторождение
+	WellNumber              int       // № скважины
+	ClusterNumber           int       // № кустовой площадки
+	Horizon                 string    // Продуктивный горизонт
+	StartTime               time.Time // Дата начала исследования
+	EndTime                 time.Time // Дата окончания исследования
+	InstrumentType          string    // Тип прибора
+	InstrumentNumber        int       // № прибора
+	Inclinometry            TableFour // Данные инклинометрии
+	VDPMeasuredDepth        float64   // MD ВДП
+	VDPTrueVerticalDepth    *float64  // TVD ВДП, расчётное
+	VDPTrueVerticalDepthSea *float64  // TVDSS ВДП, расчётное
+	DiffInstrumentVDP       *float64  // Разница отметок, расчётное
+	DensityOil              float64   // Плотность для дебита нефти, кг/м3
+	DensityLiquidStopped    float64   // Плотность жидкости в простое, кг/м3
+	DensityLiquidWorking    float64   // Плотность жидкости в работе, кг/м3
+	PressureDiffStopped     *float64  // ΔP простоя, расчётное
+	PressureDiffWorking     *float64  // ΔP работы, расчётное
 }
 
 // Справочники
 
-type ProductiveHorizon string // Б1, Б2, Б3...
-type OilField string          // Наименование месторождения
-type InstrumentType string    // Тип прибора, например, ГС-АМТС, PPS 25, КАМА-2
+// ProductiveHorizon Б1, Б2, Б3...
+type ProductiveHorizon struct {
+	id   int32  `db:"id"`
+	name string `db:"name"`
+}
+
+// OilField Наименование месторождения
+type OilField struct {
+	id   int32  `db:"id"`
+	name string `db:"name"`
+}
+
+// InstrumentType Тип прибора, например, ГС-АМТС, PPS 25, КАМА-2
+type InstrumentType struct {
+	id   int32  `db:"id"`
+	name string `db:"name"`
+}
