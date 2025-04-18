@@ -3,7 +3,7 @@ package ui
 import (
 	"fmt"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/export"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/database"
 	"strconv"
 	"strings"
 	"time"
@@ -38,13 +38,13 @@ type Service struct {
 	zLog             logger.Logger
 	importer         importer
 	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage
-	exporter         export.Service
+	db               database.Service
 	converter        converterService
 }
 
 // NewService создаёт новый UI‑сервис.
 func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService,
-	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, exporter export.Service) *Service {
+	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db database.Service) *Service {
 	a := app.New()
 	win := a.NewWindow(title)
 	win.Resize(fyne.NewSize(float32(w), float32(h)))
@@ -54,7 +54,7 @@ func NewService(title string, w, h int, zLog logger.Logger, imp importer, conver
 		zLog:             zLog,
 		importer:         imp,
 		memBlocksStorage: memBlocksStorage,
-		exporter:         exporter,
+		db:               db,
 		converter:        converter,
 	}
 }

@@ -5,7 +5,7 @@ import (
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
 	calcService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/calc"
 	converterService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/convertor"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/export"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/database"
 	importerService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/importer"
 	uiService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/ui"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
@@ -13,6 +13,7 @@ import (
 	"log"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/cockroachdb/errors"
 
@@ -26,6 +27,9 @@ func main() {
 	if err := bootstrap(ctx); err != nil {
 		log.Fatalf("[main] bootstrap failed: %v", err)
 	}
+
+	<-ctx.Done()
+	time.Sleep(60 * time.Second)
 }
 
 func bootstrap(ctx context.Context) error {
@@ -65,15 +69,17 @@ func bootstrap(ctx context.Context) error {
 	}
 	zLog.Infow("Migrations initialized successfully")
 
-	exporter, err := export.NewExporter(db, zLog)
+	dbService, err := database.NewService(db, zLog)
 
-	ui := uiService.NewService(conf.UI.Name, conf.UI.Width, conf.UI.Height, zLog, importer, converter, inMemoryBlocksStorage, exporter)
+	ui := uiService.NewService(conf.UI.Name, conf.UI.Width, conf.UI.Height, zLog, importer, converter, inMemoryBlocksStorage, dbService)
 	if err = ui.Run(); err != nil {
 		zLog.Errorw("UI service failed", "error", err)
 		return err
 	}
 
 	zLog.Infow("Application shutting down...")
+	db.Close()
+
 	zLog.Infow("Shutdown completed")
 
 	return nil
