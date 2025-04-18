@@ -23,7 +23,7 @@ type importer interface {
 	ParseBlockOneFile(path string, cfg models.OperationConfig) ([]models.TableOne, error)
 	ParseBlockTwoFile(path string) ([]models.TableTwo, error)
 	ParseBlockThreeFile(path string) ([]models.TableThree, error)
-	ParseBlockFourFile(path string) ([]models.Inclinometry, error)
+	ParseBlockFourFile(path string) ([]models.TableFour, error)
 }
 
 type converterService interface {
@@ -320,7 +320,7 @@ func (s *Service) doGenericImport(path, typ string) {
 
 	case "TableFour":
 		// Инклинометрия
-		var data []models.Inclinometry
+		var data []models.TableFour
 		data, err = s.importer.ParseBlockFourFile(path)
 		count = len(data)
 		if err == nil {
