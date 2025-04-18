@@ -65,14 +65,14 @@ func bootstrap(ctx context.Context) error {
 	zLog.Infow("Migrations initialized successfully")
 
 	//Репозитории для работы с данными
-	guidebooksRepository, err := sqlite.NewGuidebookRepository(db)
+	guidebooksRepository, err := sqlite.NewGuidebookStorage(db)
 	if err != nil {
-		zLog.Errorw("sqlite.NewGuidebookRepository", "error", err)
+		zLog.Errorw("sqlite.NewGuidebookStorage", "error", err)
 		return err
 	}
-	blocksRepository, err := sqlite.NewBlockRepository(db)
+	blocksRepository, err := sqlite.NewBlockStorage(db)
 	if err != nil {
-		zLog.Errorw("sqlite.NewBlockRepository", "error", err)
+		zLog.Errorw("sqlite.NewBlockStorage", "error", err)
 		return err
 	}
 	zLog.Infow("Repositories initialized successfully")

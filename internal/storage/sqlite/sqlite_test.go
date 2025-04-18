@@ -13,8 +13,8 @@ func TestOpen(t *testing.T) {
 	db, err := NewDB(config.DBConf{DSN: DSN})
 	assert.Nil(t, err)
 
-	_, err = NewGuidebookRepository(db)
+	_, err = NewGuidebookStorage(db)
 	assert.Nil(t, err)
-	_, err = NewBlockRepository(db)
+	_, err = NewBlockStorage(db)
 	assert.Nil(t, err)
 }

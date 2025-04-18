@@ -5,7 +5,7 @@ import (
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
 
-func NewGuidebookRepository(db *sqlx.DB) (GuidebooksStorage, error) {
+func NewGuidebookStorage(db *sqlx.DB) (GuidebooksStorage, error) {
 	return &sqlite{
 		DB: db,
 	}, nil

@@ -6,7 +6,7 @@ import (
 )
 
 // TODO достать все, добавить строку
-func NewBlockRepository(db *sqlx.DB) (BlocksStorage, error) {
+func NewBlockStorage(db *sqlx.DB) (BlocksStorage, error) {
 	return &sqlite{
 		DB: db,
 	}, nil
