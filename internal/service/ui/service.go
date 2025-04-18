@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/sqlite"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +16,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
-	appStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/storage"
+	inmemoryStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
 )
 
 // importer умеет парсить три типа блоков.
@@ -32,26 +33,31 @@ type converterService interface {
 
 // Service отвечает за инициализацию и запуск UI приложения.
 type Service struct {
-	app       fyne.App
-	window    fyne.Window
-	zLog      logger.Logger
-	importer  importer
-	store     appStorage.BlocksStorage
-	converter converterService
+	app                  fyne.App
+	window               fyne.Window
+	zLog                 logger.Logger
+	importer             importer
+	memBlocksStorage     inmemoryStorage.InMemoryBlocksStorage
+	blocksRepository     sqlite.BlocksStorage
+	guidebooksRepository sqlite.GuidebooksStorage
+	converter            converterService
 }
 
 // NewService создаёт новый UI‑сервис.
-func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService, store appStorage.BlocksStorage) *Service {
+func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService,
+	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, blocksRepository sqlite.BlocksStorage, guidebooksRepository sqlite.GuidebooksStorage) *Service {
 	a := app.New()
 	win := a.NewWindow(title)
 	win.Resize(fyne.NewSize(float32(w), float32(h)))
 	return &Service{
-		app:       a,
-		window:    win,
-		zLog:      zLog,
-		importer:  imp,
-		store:     store,
-		converter: converter,
+		app:                  a,
+		window:               win,
+		zLog:                 zLog,
+		importer:             imp,
+		memBlocksStorage:     memBlocksStorage,
+		blocksRepository:     blocksRepository,
+		guidebooksRepository: guidebooksRepository,
+		converter:            converter,
 	}
 }
 
@@ -125,7 +131,7 @@ func (s *Service) Run() error {
 			if !ok {
 				return
 			}
-			if err := s.store.ClearAll(); err != nil {
+			if err := s.memBlocksStorage.ClearAll(); err != nil {
 				s.zLog.Errorw("Clear failed", "error", err)
 				dialog.ShowError(fmt.Errorf("ошибка очистки: %w", err), s.window)
 				return
@@ -282,7 +288,7 @@ func (s *Service) doTableOneImport(path string, cfg models.OperationConfig) {
 		dialog.ShowError(err, s.window)
 		return
 	}
-	if err2 := s.store.AddBlockOneData(data); err2 != nil {
+	if err2 := s.memBlocksStorage.AddBlockOneData(data); err2 != nil {
 		s.zLog.Errorw("TableOne save failed", "error", err2)
 		dialog.ShowError(fmt.Errorf("ошибка сохранения: %w", err2), s.window)
 		return
@@ -308,14 +314,14 @@ func (s *Service) doGenericImport(path, typ string) {
 		data, err = s.importer.ParseBlockTwoFile(path)
 		count = len(data)
 		if err == nil {
-			err = s.store.AddBlockTwoData(data)
+			err = s.memBlocksStorage.AddBlockTwoData(data)
 		}
 	case "TableThree":
 		var data []models.TableThree
 		data, err = s.importer.ParseBlockThreeFile(path)
 		count = len(data)
 		if err == nil {
-			err = s.store.AddBlockThreeData(data)
+			err = s.memBlocksStorage.AddBlockThreeData(data)
 		}
 
 	case "TableFour":
@@ -325,7 +331,7 @@ func (s *Service) doGenericImport(path, typ string) {
 		count = len(data)
 		if err == nil {
 			// Реализуйте в BlocksStorage метод AddBlockFourData
-			err = s.store.AddBlockFourData(data)
+			err = s.memBlocksStorage.AddBlockFourData(data)
 		}
 	}
 

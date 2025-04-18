@@ -4,7 +4,8 @@ logger:
   env: prod  # prod или dev отвечает за уровень логирования
 
 db:
-  dsn: "user= dbname= password= sslmode= host= port="
+  dsn: "tests/database/example.db"
+  migration_path: "migrations"
 
 ui:
   name: "burovichok"
