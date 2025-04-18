@@ -34,36 +34,49 @@ type TableThree struct {
 
 // TableFour — Блок 4. Инклинометрия (MD, TVD, TVDSS)
 type TableFour struct {
-	MeasuredDepth           float64 `xlsx:"Глубина по стволу, м"`    // MD
-	TrueVerticalDepth       float64 `xlsx:"Глубина по вертикали, м"` // TVD
-	TrueVerticalDepthSubSea float64 `xlsx:"Абсолютная глубина, м"`   // TVDSS
+	MeasuredDepth           float64 `xlsx:"Глубина по стволу, м" db:"measure_depth"`                // MD
+	TrueVerticalDepth       float64 `xlsx:"Глубина по вертикали, м" db:"true_vertical_depth"`       // TVD
+	TrueVerticalDepthSubSea float64 `xlsx:"Абсолютная глубина, м" db:"true_vertical_depth_sub_sea"` // TVDSS
 }
 
 // TableFive — Блок 5. Общие сведения об исследовании
 // Поля берутся из формы или справочников, поэтому xlsx-тегов нет
 type TableFive struct {
-	Field                   OilField          // Месторождение
-	WellNumber              int               // № скважины
-	ClusterNumber           int               // № кустовой площадки
-	Horizon                 ProductiveHorizon // Продуктивный горизонт
-	StartTime               time.Time         // Дата начала исследования
-	EndTime                 time.Time         // Дата окончания исследования
-	InstrumentType          InstrumentType    // Тип прибора
-	InstrumentNumber        int               // № прибора
-	Inclinometry            TableFour         // Данные инклинометрии
-	VDPMeasuredDepth        float64           // MD ВДП
-	VDPTrueVerticalDepth    *float64          // TVD ВДП, расчётное
-	VDPTrueVerticalDepthSea *float64          // TVDSS ВДП, расчётное
-	DiffInstrumentVDP       *float64          // Разница отметок, расчётное
-	DensityOil              float64           // Плотность для дебита нефти, кг/м3
-	DensityLiquidStopped    float64           // Плотность жидкости в простое, кг/м3
-	DensityLiquidWorking    float64           // Плотность жидкости в работе, кг/м3
-	PressureDiffStopped     *float64          // ΔP простоя, расчётное
-	PressureDiffWorking     *float64          // ΔP работы, расчётное
+	FieldName               string    `db:"field_name"`                  // Месторождение
+	FieldNumber             int       `db:"field_number"`                // № скважины
+	ClusterNumber           *int      `db:"cluster_number"`              // № кустовой площадки (может быть не у всех)
+	Horizon                 string    `db:"horizon"`                     // Продуктивный горизонт
+	StartTime               time.Time `db:"start_time"`                  // Дата начала исследования
+	EndTime                 time.Time `db:"end_time"`                    // Дата окончания исследования
+	InstrumentType          string    `db:"instrument_type"`             // Тип прибора
+	InstrumentNumber        *int      `db:"instrument_number"`           // № прибора (может быть не у всех)
+	MeasuredDepth           float64   `db:"measure_depth"`               // MD
+	TrueVerticalDepth       float64   `db:"true_vertical_depth"`         // TVD
+	TrueVerticalDepthSubSea float64   `db:"true_vertical_depth_sub_sea"` // TVDSS // Данные инклинометрии
+	VDPMeasuredDepth        float64   `db:"vdp_measured_depth"`          // MD ВДП
+	VDPTrueVerticalDepth    *float64  `db:"vdp_true_vertical_depth"`     // TVD ВДП, расчётное
+	VDPTrueVerticalDepthSea *float64  `db:"vdp_true_vertical_depth_sea"` // TVDSS ВДП, расчётное
+	DiffInstrumentVDP       *float64  `db:"diff_instrument_vdp"`         // Разница отметок, расчётное
+	DensityOil              float64   `db:"density_oil"`                 // Плотность для дебита нефти, кг/м3
+	DensityLiquidStopped    float64   `db:"density_liquid_stopped"`      // Плотность жидкости в простое, кг/м3
+	DensityLiquidWorking    float64   `db:"density_liquid_working"`      // Плотность жидкости в работе, кг/м3
+	PressureDiffStopped     *float64  `db:"pressure_diff_stopped"`       // ΔP простоя, расчётное
+	PressureDiffWorking     *float64  `db:"pressure_diff_working"`       // ΔP работы, расчётное
 }
 
 // Справочники
 
-type ProductiveHorizon string // Б1, Б2, Б3...
-type OilField string          // Наименование месторождения
-type InstrumentType string    // Тип прибора, например, ГС-АМТС, PPS 25, КАМА-2
+// ProductiveHorizon Б1, Б2, Б3...
+type ProductiveHorizon struct {
+	Name string `db:"name"`
+}
+
+// OilField Наименование месторождения
+type OilField struct {
+	Name string `db:"name"`
+}
+
+// InstrumentType Тип прибора, например, ГС-АМТС, PPS 25, КАМА-2
+type InstrumentType struct {
+	Name string `db:"name"`
+}

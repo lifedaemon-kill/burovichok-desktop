@@ -6,16 +6,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/database"
+
+	chartService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/chart"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
-	appStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/storage"
+	inmemoryStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
 )
 
 // importer умеет парсить три типа блоков.
@@ -32,26 +37,32 @@ type converterService interface {
 
 // Service отвечает за инициализацию и запуск UI приложения.
 type Service struct {
-	app       fyne.App
-	window    fyne.Window
-	zLog      logger.Logger
-	importer  importer
-	store     appStorage.Storage
-	converter converterService
+	app              fyne.App
+	window           fyne.Window
+	zLog             logger.Logger
+	importer         importer
+	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage
+	db               database.Service
+	converter        converterService
+	chart            chartService.Service
 }
 
 // NewService создаёт новый UI‑сервис.
-func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService, store appStorage.Storage) *Service {
+func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService,
+	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db database.Service, chart chartService.Service) *Service {
 	a := app.New()
+	chartSvc := chartService.NewService()
 	win := a.NewWindow(title)
 	win.Resize(fyne.NewSize(float32(w), float32(h)))
 	return &Service{
-		app:       a,
-		window:    win,
-		zLog:      zLog,
-		importer:  imp,
-		store:     store,
-		converter: converter,
+		app:              a,
+		window:           win,
+		zLog:             zLog,
+		importer:         imp,
+		memBlocksStorage: memBlocksStorage,
+		db:               db,
+		converter:        converter,
+		chart:            chartSvc,
 	}
 }
 
@@ -80,6 +91,44 @@ func (r *ratioLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 
 // Run строит интерфейс и запускает приложение.
 func (s *Service) Run() error {
+
+	chartBtn := widget.NewButton("График T/P (Блок 1)", func() {
+		blockOneData, err := s.memBlocksStorage.GetAllBlockOneData()
+		if err != nil {
+			// ... обработка ошибки получения данных ...
+			s.zLog.Errorw("Failed to get BlockOne data for chart", "error", err)
+			dialog.ShowError(fmt.Errorf("не удалось получить данные Блока 1: %w", err), s.window)
+			return
+		}
+		if len(blockOneData) < 2 { // Проверяем наличие достаточного количества точек
+			dialog.ShowInformation("Нет данных", "Недостаточно данных для построения графика (нужно >1 точки)", s.window)
+			return
+		}
+
+		// Генерируем график с помощью chart сервиса (теперь он возвращает image.Image)
+		chartImage, err := s.chart.GeneratePressureTempChart(blockOneData)
+		if err != nil {
+			// ... обработка ошибки генерации графика ...
+			s.zLog.Errorw("Failed to generate chart", "error", err)
+			dialog.ShowError(fmt.Errorf("ошибка построения графика: %w", err), s.window)
+			return
+		}
+
+		// Создаем Fyne объект image из сгенерированной картинки
+		fyneImage := canvas.NewImageFromImage(chartImage)
+		fyneImage.FillMode = canvas.ImageFillContain   // Режим заполнения, чтобы сохранить пропорции
+		fyneImage.ScaleMode = canvas.ImageScaleFastest // Режим масштабирования
+		fyneImage.SetMinSize(fyne.NewSize(600, 400))   // Минимальный размер, чтобы было видно
+
+		// Показываем график в новом окне
+		chartWindow := s.app.NewWindow("График Давления/Температуры (Блок 1)")
+		// Помещаем картинку в контейнер с прокруткой, на случай если она большая
+		scrollContainer := container.NewScroll(fyneImage)
+		chartWindow.SetContent(scrollContainer)
+		chartWindow.Resize(fyne.NewSize(800, 600)) // Размер окна графика
+		chartWindow.Show()
+	})
+
 	// 1) поле выбора файла + кнопка
 	pathEntry := widget.NewEntry()
 	pathEntry.PlaceHolder = "Файл не выбран"
@@ -125,7 +174,7 @@ func (s *Service) Run() error {
 			if !ok {
 				return
 			}
-			if err := s.store.ClearAll(); err != nil {
+			if err := s.memBlocksStorage.ClearAll(); err != nil {
 				s.zLog.Errorw("Clear failed", "error", err)
 				dialog.ShowError(fmt.Errorf("ошибка очистки: %w", err), s.window)
 				return
@@ -140,6 +189,7 @@ func (s *Service) Run() error {
 		header,
 		typeSelect,
 		importBtn,
+		chartBtn,
 		widget.NewSeparator(),
 		clearBtn,
 	)
@@ -282,7 +332,7 @@ func (s *Service) doTableOneImport(path string, cfg models.OperationConfig) {
 		dialog.ShowError(err, s.window)
 		return
 	}
-	if err2 := s.store.AddBlockOneData(data); err2 != nil {
+	if err2 := s.memBlocksStorage.AddBlockOneData(data); err2 != nil {
 		s.zLog.Errorw("TableOne save failed", "error", err2)
 		dialog.ShowError(fmt.Errorf("ошибка сохранения: %w", err2), s.window)
 		return
@@ -308,14 +358,14 @@ func (s *Service) doGenericImport(path, typ string) {
 		data, err = s.importer.ParseBlockTwoFile(path)
 		count = len(data)
 		if err == nil {
-			err = s.store.AddBlockTwoData(data)
+			err = s.memBlocksStorage.AddBlockTwoData(data)
 		}
 	case "TableThree":
 		var data []models.TableThree
 		data, err = s.importer.ParseBlockThreeFile(path)
 		count = len(data)
 		if err == nil {
-			err = s.store.AddBlockThreeData(data)
+			err = s.memBlocksStorage.AddBlockThreeData(data)
 		}
 
 	case "TableFour":
@@ -324,8 +374,8 @@ func (s *Service) doGenericImport(path, typ string) {
 		data, err = s.importer.ParseBlockFourFile(path)
 		count = len(data)
 		if err == nil {
-			// Реализуйте в Storage метод AddBlockFourData
-			err = s.store.AddBlockFourData(data)
+			// Реализуйте в BlocksStorage метод AddBlockFourData
+			err = s.memBlocksStorage.AddBlockFourData(data)
 		}
 	}
 
