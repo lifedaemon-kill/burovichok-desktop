@@ -25,3 +25,5 @@ go.work.sum
 .idea
 
 ./config/values_local.yaml
+
+tests/database/example.db

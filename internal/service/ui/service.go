@@ -2,8 +2,11 @@ package ui
 
 import (
 	"fmt"
+	"net"
+	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
@@ -13,7 +16,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/canvas"
+
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
@@ -21,9 +24,9 @@ import (
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	inmemoryStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
+	"github.com/pkg/browser"
 )
 
-// importer умеет парсить три типа блоков.
 type importer interface {
 	ParseBlockOneFile(path string, cfg models.OperationConfig) ([]models.TableOne, error)
 	ParseBlockTwoFile(path string) ([]models.TableTwo, error)
@@ -35,7 +38,6 @@ type converterService interface {
 	ParseFlexibleTime(raw string) (time.Time, error)
 }
 
-// Service отвечает за инициализацию и запуск UI приложения.
 type Service struct {
 	app              fyne.App
 	window           fyne.Window
@@ -45,13 +47,17 @@ type Service struct {
 	db               database.Service
 	converter        converterService
 	chart            chartService.Service
+
+	serverMutex      sync.Mutex
+	serverListener   net.Listener
+	serverPort       string
+	chartHtmlToServe string
 }
 
-// NewService создаёт новый UI‑сервис.
 func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService,
 	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db database.Service, chart chartService.Service) *Service {
 	a := app.New()
-	chartSvc := chartService.NewService()
+	// chartSvc := chartService.NewService() // Сервис теперь передается снаружи
 	win := a.NewWindow(title)
 	win.Resize(fyne.NewSize(float32(w), float32(h)))
 	return &Service{
@@ -62,11 +68,66 @@ func NewService(title string, w, h int, zLog logger.Logger, imp importer, conver
 		memBlocksStorage: memBlocksStorage,
 		db:               db,
 		converter:        converter,
-		chart:            chartSvc,
+		chart:            chart,
 	}
 }
 
-// ratioLayout располагает два объекта в контейнере в пропорции ratio к (1-ratio).
+// --- Методы для управления веб-сервером ---
+
+func (s *Service) startLocalWebServer() error {
+	s.serverMutex.Lock()
+	defer s.serverMutex.Unlock()
+
+	if s.serverListener != nil {
+		return nil
+	}
+
+	s.zLog.Infow("Starting local chart web server...")
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		s.zLog.Errorw("Failed to find free port for chart server", "error", err)
+		return fmt.Errorf("не удалось найти порт для сервера графика: %w", err)
+	}
+	s.serverListener = listener
+	s.serverPort = strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	s.zLog.Infow("Chart server listening", "address", listener.Addr().String())
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", s.serveChartHTML)
+
+	// Запускаем сервер в отдельной горутине, чтобы не блокировать UI
+	go func() {
+		if err := http.Serve(s.serverListener, mux); err != nil && err != http.ErrServerClosed {
+			s.zLog.Errorw("Chart server error", "error", err)
+			s.serverMutex.Lock()
+			s.serverListener = nil
+			s.serverPort = ""
+			s.serverMutex.Unlock()
+		}
+		s.zLog.Infow("Chart server stopped.")
+	}()
+
+	return nil
+}
+
+func (s *Service) serveChartHTML(w http.ResponseWriter, r *http.Request) {
+	s.serverMutex.Lock()
+	htmlPath := s.chartHtmlToServe
+	s.serverMutex.Unlock()
+
+	if htmlPath == "" {
+		http.Error(w, "График еще не сгенерирован", http.StatusNotFound)
+		s.zLog.Errorw("Request for chart before generation")
+		return
+	}
+
+	s.zLog.Infow("Serving chart HTML", "path", htmlPath)
+	http.ServeFile(w, r, htmlPath) // Отдаем файл
+}
+
+// --- Конец методов веб-сервера ---
+
 type ratioLayout struct{ ratio float32 }
 
 func (r *ratioLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
@@ -89,44 +150,66 @@ func (r *ratioLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(0, h)
 }
 
-// Run строит интерфейс и запускает приложение.
 func (s *Service) Run() error {
+	s.window.SetOnClosed(func() {
+		s.serverMutex.Lock()
+		if s.serverListener != nil {
+			s.zLog.Infow("Closing chart server...")
+			s.serverListener.Close()
+			s.serverListener = nil
+			s.serverPort = ""
+		}
+		s.serverMutex.Unlock()
+	})
 
-	chartBtn := widget.NewButton("График T/P (Блок 1)", func() {
+	chartBtn := widget.NewButton("Интерактивный График T/P (Блок 1)", func() {
 		blockOneData, err := s.memBlocksStorage.GetAllBlockOneData()
 		if err != nil {
-			// ... обработка ошибки получения данных ...
 			s.zLog.Errorw("Failed to get BlockOne data for chart", "error", err)
 			dialog.ShowError(fmt.Errorf("не удалось получить данные Блока 1: %w", err), s.window)
 			return
 		}
-		if len(blockOneData) < 2 { // Проверяем наличие достаточного количества точек
-			dialog.ShowInformation("Нет данных", "Недостаточно данных для построения графика (нужно >1 точки)", s.window)
+		if len(blockOneData) == 0 {
+			dialog.ShowInformation("Нет данных", "Недостаточно данных для построения графика", s.window)
 			return
 		}
 
-		// Генерируем график с помощью chart сервиса (теперь он возвращает image.Image)
-		chartImage, err := s.chart.GeneratePressureTempChart(blockOneData)
+		htmlPath, err := s.chart.GeneratePressureTempChart(blockOneData)
 		if err != nil {
-			// ... обработка ошибки генерации графика ...
-			s.zLog.Errorw("Failed to generate chart", "error", err)
-			dialog.ShowError(fmt.Errorf("ошибка построения графика: %w", err), s.window)
+			s.zLog.Errorw("Failed to generate chart HTML", "error", err)
+			dialog.ShowError(fmt.Errorf("ошибка генерации HTML графика: %w", err), s.window)
 			return
 		}
 
-		// Создаем Fyne объект image из сгенерированной картинки
-		fyneImage := canvas.NewImageFromImage(chartImage)
-		fyneImage.FillMode = canvas.ImageFillContain   // Режим заполнения, чтобы сохранить пропорции
-		fyneImage.ScaleMode = canvas.ImageScaleFastest // Режим масштабирования
-		fyneImage.SetMinSize(fyne.NewSize(600, 400))   // Минимальный размер, чтобы было видно
+		s.serverMutex.Lock()
+		s.chartHtmlToServe = htmlPath
+		s.serverMutex.Unlock()
 
-		// Показываем график в новом окне
-		chartWindow := s.app.NewWindow("График Давления/Температуры (Блок 1)")
-		// Помещаем картинку в контейнер с прокруткой, на случай если она большая
-		scrollContainer := container.NewScroll(fyneImage)
-		chartWindow.SetContent(scrollContainer)
-		chartWindow.Resize(fyne.NewSize(800, 600)) // Размер окна графика
-		chartWindow.Show()
+		if err := s.startLocalWebServer(); err != nil {
+			dialog.ShowError(fmt.Errorf("ошибка запуска веб-сервера для графика: %w", err), s.window)
+			return
+		}
+
+		// Даем серверу микро-паузу на старт (не самое элегантное решение, но простое)
+		time.Sleep(100 * time.Millisecond)
+
+		s.serverMutex.Lock()
+		port := s.serverPort
+		s.serverMutex.Unlock()
+
+		if port == "" {
+			dialog.ShowError(fmt.Errorf("не удалось получить порт веб-сервера"), s.window)
+			return
+		}
+		chartURL := fmt.Sprintf("http://127.0.0.1:%s/", port)
+		s.zLog.Infow("Opening chart in browser", "url", chartURL)
+
+		err = browser.OpenURL(chartURL)
+		if err != nil {
+			s.zLog.Errorw("Failed to open browser for chart", "error", err)
+			dialog.ShowError(fmt.Errorf("не удалось открыть браузер: %w", err), s.window)
+			return
+		}
 	})
 
 	// 1) поле выбора файла + кнопка
@@ -183,14 +266,17 @@ func (s *Service) Run() error {
 		}, s.window)
 	})
 
-	// компоновка
 	header := container.New(&ratioLayout{ratio: 0.7}, pathEntry, chooseBtn)
 	content := container.NewVBox(
+		widget.NewLabel("1. Выберите файл и тип данных:"),
 		header,
 		typeSelect,
+		widget.NewSeparator(),
+		widget.NewLabel("2. Выполните действия:"),
 		importBtn,
 		chartBtn,
 		widget.NewSeparator(),
+		widget.NewLabel("3. Управление хранилищем:"),
 		clearBtn,
 	)
 
