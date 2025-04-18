@@ -5,7 +5,7 @@ logger:
 
 db:
   dsn: "tests/database/example.db"
-  migration_path: "migrations"
+  migration_path: "migrations/"
 
 ui:
   name: "burovichok"

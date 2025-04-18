@@ -36,7 +36,7 @@ func Load(configPath string) (*Config, error) {
 
 type DBConf struct {
 	DSN            string `yaml:"dsn" env-required:"true"`
-	MigrationsPath string `yaml:" migration_path: " env-required:"true"`
+	MigrationsPath string `yaml:"migration_path" env-required:"true"`
 }
 
 type LoggerConf struct {
