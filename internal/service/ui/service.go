@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 	"strconv"
 	"strings"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 	appStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/storage"
 )
 
@@ -36,12 +36,12 @@ type Service struct {
 	window    fyne.Window
 	zLog      logger.Logger
 	importer  importer
-	store     appStorage.Storage
+	store     appStorage.BlocksStorage
 	converter converterService
 }
 
 // NewService создаёт новый UI‑сервис.
-func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService, store appStorage.Storage) *Service {
+func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService, store appStorage.BlocksStorage) *Service {
 	a := app.New()
 	win := a.NewWindow(title)
 	win.Resize(fyne.NewSize(float32(w), float32(h)))
@@ -324,7 +324,7 @@ func (s *Service) doGenericImport(path, typ string) {
 		data, err = s.importer.ParseBlockFourFile(path)
 		count = len(data)
 		if err == nil {
-			// Реализуйте в Storage метод AddBlockFourData
+			// Реализуйте в BlocksStorage метод AddBlockFourData
 			err = s.store.AddBlockFourData(data)
 		}
 	}
