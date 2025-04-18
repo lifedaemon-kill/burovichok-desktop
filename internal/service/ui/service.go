@@ -3,7 +3,7 @@ package ui
 import (
 	"fmt"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/sqlite"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/export"
 	"strconv"
 	"strings"
 	"time"
@@ -33,31 +33,29 @@ type converterService interface {
 
 // Service отвечает за инициализацию и запуск UI приложения.
 type Service struct {
-	app                  fyne.App
-	window               fyne.Window
-	zLog                 logger.Logger
-	importer             importer
-	memBlocksStorage     inmemoryStorage.InMemoryBlocksStorage
-	blocksRepository     sqlite.BlocksStorage
-	guidebooksRepository sqlite.GuidebooksStorage
-	converter            converterService
+	app              fyne.App
+	window           fyne.Window
+	zLog             logger.Logger
+	importer         importer
+	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage
+	exporter         export.Service
+	converter        converterService
 }
 
 // NewService создаёт новый UI‑сервис.
 func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService,
-	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, blocksRepository sqlite.BlocksStorage, guidebooksRepository sqlite.GuidebooksStorage) *Service {
+	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, exporter export.Service) *Service {
 	a := app.New()
 	win := a.NewWindow(title)
 	win.Resize(fyne.NewSize(float32(w), float32(h)))
 	return &Service{
-		app:                  a,
-		window:               win,
-		zLog:                 zLog,
-		importer:             imp,
-		memBlocksStorage:     memBlocksStorage,
-		blocksRepository:     blocksRepository,
-		guidebooksRepository: guidebooksRepository,
-		converter:            converter,
+		app:              a,
+		window:           win,
+		zLog:             zLog,
+		importer:         imp,
+		memBlocksStorage: memBlocksStorage,
+		exporter:         exporter,
+		converter:        converter,
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
 	calcService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/calc"
 	converterService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/convertor"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/export"
 	importerService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/importer"
 	uiService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/ui"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
@@ -64,20 +65,9 @@ func bootstrap(ctx context.Context) error {
 	}
 	zLog.Infow("Migrations initialized successfully")
 
-	//Репозитории для работы с данными
-	guidebooksRepository, err := sqlite.NewGuidebookStorage(db)
-	if err != nil {
-		zLog.Errorw("sqlite.NewGuidebookStorage", "error", err)
-		return err
-	}
-	blocksRepository, err := sqlite.NewBlockStorage(db)
-	if err != nil {
-		zLog.Errorw("sqlite.NewBlockStorage", "error", err)
-		return err
-	}
-	zLog.Infow("Repositories initialized successfully")
+	exporter, err := export.NewExporter(db, zLog)
 
-	ui := uiService.NewService(conf.UI.Name, conf.UI.Width, conf.UI.Height, zLog, importer, converter, inMemoryBlocksStorage, blocksRepository, guidebooksRepository)
+	ui := uiService.NewService(conf.UI.Name, conf.UI.Width, conf.UI.Height, zLog, importer, converter, inMemoryBlocksStorage, exporter)
 	if err = ui.Run(); err != nil {
 		zLog.Errorw("UI service failed", "error", err)
 		return err
