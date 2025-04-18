@@ -17,6 +17,8 @@ func NewDB(conf config.DBConf) (*sqlx.DB, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "sqlite.NewDB")
 	}
+	err = db.Ping()
+
 	return db, err
 }
 
