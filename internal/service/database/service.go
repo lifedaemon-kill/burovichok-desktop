@@ -12,7 +12,7 @@ type Service interface {
 	importer
 }
 type exporter interface {
-	SaveReport(tableFive models.TableFive) (id int32, err error)
+	SaveReport(tableFive models.TableFive) (id int64, err error)
 
 	SaveInstrumentType([]models.InstrumentType) error
 	SaveOilField([]models.OilField) error
@@ -43,7 +43,7 @@ func (d dbService) GetAllReports() ([]models.TableFive, error) {
 	return reports, nil
 }
 
-func (d dbService) SaveReport(tableFive models.TableFive) (int32, error) {
+func (d dbService) SaveReport(tableFive models.TableFive) (int64, error) {
 	id, err := d.b.AddBlockFive(tableFive)
 	if err != nil {
 		d.log.Errorw("failed to save report", "tableFive", tableFive, "error", err)
