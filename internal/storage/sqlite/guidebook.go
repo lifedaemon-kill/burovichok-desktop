@@ -11,17 +11,17 @@ func NewGuidebookRepository(db *sqlx.DB) (GuidebooksStorage, error) {
 	}, nil
 }
 
-func (s sqlite) AddOilPlaces() ([]models.OilField, error) {
+func (s sqlite) AddOilPlaces(fields []models.OilField) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s sqlite) AddInstrumentType() ([]models.InstrumentType, error) {
+func (s sqlite) AddInstrumentType(types []models.InstrumentType) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s sqlite) AddProductiveHorizon() ([]models.ProductiveHorizon, error) {
+func (s sqlite) AddProductiveHorizon(horizons []models.ProductiveHorizon) error {
 	//TODO implement me
 	panic("implement me")
 }

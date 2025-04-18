@@ -12,52 +12,52 @@ func NewBlockRepository(db *sqlx.DB) (BlocksStorage, error) {
 	}, nil
 }
 
-func (s sqlite) GetBlockOne() ([]models.TableOne, error) {
+func (s sqlite) GetTableOneByReportID() ([]models.TableOne, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s sqlite) GetBlockTwo() ([]models.TableTwo, error) {
+func (s sqlite) GetTableTwoByReportID() ([]models.TableTwo, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s sqlite) GetBlockThree() ([]models.TableThree, error) {
+func (s sqlite) GetTableThreeByReportID() ([]models.TableThree, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s sqlite) GetBlockFour() ([]models.TableFour, error) {
+func (s sqlite) GetTableFourByReportID() ([]models.TableFour, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s sqlite) GetBlockFive() ([]models.TableFive, error) {
+func (s sqlite) GetTableFive() ([]models.TableFive, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s sqlite) AddBlockOne() (int32, error) {
+func (s sqlite) AddBlockOne(data []models.TableOne, reportID int32) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s sqlite) AddBlockTwo() (int32, error) {
+func (s sqlite) AddBlockTwo(data []models.TableTwo, reportID int32) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s sqlite) AddBlockThree() (int32, error) {
+func (s sqlite) AddBlockThree(data []models.TableThree, reportID int32) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s sqlite) AddBlockFour() (int32, error) {
+func (s sqlite) AddBlockFour(data []models.TableFour, reportID int32) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s sqlite) AddBlockFive() (int32, error) {
+func (s sqlite) AddBlockFive(data []models.TableFive) (reportID int32, err error) {
 	//TODO implement me
 	panic("implement me")
 }

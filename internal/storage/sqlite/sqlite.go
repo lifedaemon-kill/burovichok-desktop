@@ -21,9 +21,9 @@ func NewDB(conf config.DBConf) (*sqlx.DB, error) {
 }
 
 type GuidebooksStorage interface {
-	AddOilPlaces() ([]models.OilField, error)
-	AddInstrumentType() ([]models.InstrumentType, error)
-	AddProductiveHorizon() ([]models.ProductiveHorizon, error)
+	AddOilPlaces([]models.OilField) error
+	AddInstrumentType([]models.InstrumentType) error
+	AddProductiveHorizon([]models.ProductiveHorizon) error
 
 	GetAllOilPlaces() ([]models.OilField, error)
 	GetAllInstrumentType() ([]models.InstrumentType, error)
@@ -31,15 +31,15 @@ type GuidebooksStorage interface {
 }
 
 type BlocksStorage interface {
-	GetBlockOne() ([]models.TableOne, error)
-	GetBlockTwo() ([]models.TableTwo, error)
-	GetBlockThree() ([]models.TableThree, error)
-	GetBlockFour() ([]models.TableFour, error)
-	GetBlockFive() ([]models.TableFive, error)
+	GetTableOneByReportID() ([]models.TableOne, error)
+	GetTableTwoByReportID() ([]models.TableTwo, error)
+	GetTableThreeByReportID() ([]models.TableThree, error)
+	GetTableFourByReportID() ([]models.TableFour, error)
+	GetTableFive() ([]models.TableFive, error)
 
-	AddBlockOne() (int32, error)
-	AddBlockTwo() (int32, error)
-	AddBlockThree() (int32, error)
-	AddBlockFour() (int32, error)
-	AddBlockFive() (int32, error)
+	AddBlockOne(data []models.TableOne, reportID int32) error
+	AddBlockTwo(data []models.TableTwo, reportID int32) error
+	AddBlockThree(data []models.TableThree, reportID int32) error
+	AddBlockFour(data []models.TableFour, reportID int32) error
+	AddBlockFive(data []models.TableFive) (reportID int32, err error)
 }
