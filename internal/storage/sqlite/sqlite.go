@@ -34,5 +34,5 @@ type GuidebooksStorage interface {
 
 type BlocksStorage interface {
 	GetAllTableFive() ([]models.TableFive, error)
-	AddBlockFive(data models.TableFive) (reportID int32, err error)
+	AddBlockFive(data models.TableFive) (reportID int64, err error)
 }
