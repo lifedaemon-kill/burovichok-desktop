@@ -1,9 +1,12 @@
 -- +goose Up
 -- +goose StatementBegin
-SELECT 'up SQL query';
+CREATE TABLE instrument_type (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL
+);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-SELECT 'down SQL query';
+DROP TABLE instrument_type;
 -- +goose StatementEnd
