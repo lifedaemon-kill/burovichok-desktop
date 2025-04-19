@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ import (
 	"fyne.io/fyne/v2/app"
 
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/validation"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
@@ -53,6 +55,9 @@ type Service struct {
 	serverListener   net.Listener
 	serverPort       string
 	chartHtmlToServe string
+
+	loadingLabel *widget.Label
+	progressBar  *widget.ProgressBarInfinite
 }
 
 func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService,
@@ -61,6 +66,12 @@ func NewService(title string, w, h int, zLog logger.Logger, imp importer, conver
 	// chartSvc := chartService.NewService() // Сервис теперь передается снаружи
 	win := a.NewWindow(title)
 	win.Resize(fyne.NewSize(float32(w), float32(h)))
+
+	loadingLbl := widget.NewLabel("Идет обработка...")
+	loadingLbl.Hide()
+	progressBr := widget.NewProgressBarInfinite()
+	progressBr.Hide()
+
 	return &Service{
 		app:              a,
 		window:           win,
@@ -70,6 +81,8 @@ func NewService(title string, w, h int, zLog logger.Logger, imp importer, conver
 		db:               db,
 		converter:        converter,
 		chart:            chart,
+		loadingLabel:     loadingLbl,
+		progressBar:      progressBr,
 	}
 }
 
@@ -255,8 +268,7 @@ func (s *Service) Run() error {
 		if typ == "TableOne" {
 			showTableOneForm(s, path)
 		} else {
-			// сразу импортим во всех остальных случаях
-			go s.doGenericImport(path, typ)
+			s.doGenericImport(path, typ)
 		}
 	})
 
@@ -275,6 +287,10 @@ func (s *Service) Run() error {
 		}, s.window)
 	})
 
+	guidebookBtn := widget.NewButton("Заполнить Шапку Отчета (Блок 5)", func() {
+		s.showBlockFiveForm()
+	})
+
 	header := container.New(&ratioLayout{ratio: 0.7}, pathEntry, chooseBtn)
 	content := container.NewVBox(
 		widget.NewLabel("1. Выберите файл и тип данных:"),
@@ -283,10 +299,14 @@ func (s *Service) Run() error {
 		widget.NewSeparator(),
 		widget.NewLabel("2. Выполните действия:"),
 		importBtn,
+		guidebookBtn,
 		chartBtn,
 		widget.NewSeparator(),
 		widget.NewLabel("3. Управление хранилищем:"),
 		clearBtn,
+		widget.NewSeparator(),
+		s.loadingLabel,
+		s.progressBar,
 	)
 
 	s.window.SetContent(content)
@@ -296,7 +316,6 @@ func (s *Service) Run() error {
 
 // showTableOneForm показывает форму параметров гидростатики и по клику "Ок" запускает импорт.
 func showTableOneForm(s *Service, path string) {
-	// поля формы
 	ws := widget.NewEntry() // Работа: c
 	we := widget.NewEntry() // Работа: по
 	is := widget.NewEntry() // Простой: c (необязательно)
@@ -328,7 +347,6 @@ func showTableOneForm(s *Service, path string) {
 				return // пользователь отменил
 			}
 
-			// Проверка обязательных полей
 			var missing []string
 			if strings.TrimSpace(ws.Text) == "" {
 				missing = append(missing, "Работа: c")
@@ -354,7 +372,6 @@ func showTableOneForm(s *Service, path string) {
 				return
 			}
 
-			// Теперь парсим время и собираем ошибки
 			var parseErrs []string
 
 			workStart, err := s.converter.ParseFlexibleTime(ws.Text)
@@ -366,7 +383,6 @@ func showTableOneForm(s *Service, path string) {
 				parseErrs = append(parseErrs, fmt.Sprintf("Работа: по — %v", err))
 			}
 
-			// для необязательных полей простоя парсим только если не пусто
 			var idleStart, idleEnd time.Time
 			if strings.TrimSpace(is.Text) != "" {
 				idleStart, err = s.converter.ParseFlexibleTime(is.Text)
@@ -381,7 +397,6 @@ func showTableOneForm(s *Service, path string) {
 				}
 			}
 
-			// Если были ошибки парсинга — показываем и выходим
 			if len(parseErrs) > 0 {
 				dialog.ShowError(
 					fmt.Errorf("Неверный формат даты/времени:\n%s", strings.Join(parseErrs, "\n")),
@@ -411,79 +426,302 @@ func showTableOneForm(s *Service, path string) {
 				PressureUnit: unit.Selected,
 			}
 
+			fileName := filepath.Base(path)
+			s.showLoadingIndicator(fileName)
+
 			go s.doTableOneImport(path, cfg)
+
 		}, s.window)
 
 	dlg.Show()
 }
 
+// --- НОВАЯ ФУНКЦИЯ: Показ формы для Блока 5 ---
+func (s *Service) showBlockFiveForm() {
+	s.zLog.Debugw("Opening Block 5 form")
+
+	// 1. Загружаем справочники из БД
+	oilFieldsModels, err := s.db.GetAllOilFields()
+	if err != nil {
+		s.zLog.Errorw("Failed to get oil fields", "error", err)
+		dialog.ShowError(fmt.Errorf("Ошибка загрузки месторождений: %w", err), s.window)
+		return
+	}
+	horizonsModels, err := s.db.GetAllProductiveHorizons()
+	if err != nil {
+		s.zLog.Errorw("Failed to get horizons", "error", err)
+		dialog.ShowError(fmt.Errorf("Ошибка загрузки горизонтов: %w", err), s.window)
+		return
+	}
+	instrumentTypesModels, err := s.db.GetAllInstrumentTypes()
+	if err != nil {
+		s.zLog.Errorw("Failed to get instrument types", "error", err)
+		dialog.ShowError(fmt.Errorf("Ошибка загрузки типов приборов: %w", err), s.window)
+		return
+	}
+
+	oilFields := make([]string, len(oilFieldsModels))
+	for i, item := range oilFieldsModels {
+		oilFields[i] = item.Name
+	}
+	horizons := make([]string, len(horizonsModels))
+	for i, item := range horizonsModels {
+		horizons[i] = item.Name
+	}
+	instrumentTypes := make([]string, len(instrumentTypesModels))
+	for i, item := range instrumentTypesModels {
+		instrumentTypes[i] = item.Name
+	}
+
+	// 2. Создаем виджеты для формы
+	fieldNameSelect := widget.NewSelect(oilFields, nil) // Или Entry, если надо и вводить? Пока Select.
+	fieldNumberEntry := widget.NewEntry()
+	clusterNumberEntry := widget.NewEntry()
+	horizonSelect := widget.NewSelect(horizons, nil)
+	startTimeEntry := widget.NewEntry() // TODO: Может, Date Picker? Пока Entry.
+	endTimeEntry := widget.NewEntry()   // TODO: Может, Date Picker? Пока Entry.
+	instrumentTypeSelect := widget.NewSelect(instrumentTypes, nil)
+	instrumentNumberEntry := widget.NewEntry()
+	measuredDepthEntry := widget.NewEntry()
+
+	// Заглушки для полей, которые не заполняем вручную или рассчитываются
+	// Смотрим models.TableFive и create_table_five.sql
+	// true_vertical_depth - REAL NOT NULL
+	// true_vertical_depth_sub_sea - REAL NOT NULL
+	// vdp_measured_depth - REAL NOT NULL
+	// vdp_true_vertical_depth - REAL (nullable)
+	// vdp_true_vertical_depth_sea - REAL (nullable)
+	// diff_instrument_vdp - REAL (nullable)
+	// density_oil - REAL NOT NULL
+	// density_liquid_stopped - REAL NOT NULL
+	// density_liquid_working - REAL NOT NULL
+	// pressure_diff_stopped - REAL (nullable)
+	// pressure_diff_working - REAL (nullable)
+	// cluster_number - INTEGER (nullable)
+	// instrument_number - INTEGER (nullable)
+
+	// Добавляем валидаторы для обязательных полей (смотрим NOT NULL в SQL и не-указатели в struct)
+	fieldNumberEntry.Validator = validation.NewRegexp(`^\d+$`, "Требуется число")                // Простой пример
+	clusterNumberEntry.Validator = validation.NewRegexp(`^\d*$`, "Требуется число или пусто")    // Nullable
+	instrumentNumberEntry.Validator = validation.NewRegexp(`^\d*$`, "Требуется число или пусто") // Nullable
+	measuredDepthEntry.Validator = validation.NewRegexp(`^\d+(\.\d+)?$`, "Требуется число")      // С плавающей точкой
+	startTimeEntry.Validator = validation.NewRegexp(`.+`, "Поле не может быть пустым")           // Проверка на непустоту
+	endTimeEntry.Validator = validation.NewRegexp(`.+`, "Поле не может быть пустым")             // Проверка на непустоту
+
+	// Создаем элементы формы
+	formItems := []*widget.FormItem{
+		widget.NewFormItem("Месторождение", fieldNameSelect), // field_name TEXT NOT NULL
+		widget.NewFormItem("№ Скважины", fieldNumberEntry),   // field_number INTEGER NOT NULL
+		widget.NewFormItem("№ Куста (опц.)", clusterNumberEntry),
+		widget.NewFormItem("Горизонт", horizonSelect), // horizon TEXT NOT NULL
+		widget.NewFormItem("Дата начала", startTimeEntry),
+		widget.NewFormItem("Дата окончания", endTimeEntry),
+		widget.NewFormItem("Тип прибора", instrumentTypeSelect), // instrument_type TEXT NOT NULL
+		widget.NewFormItem("№ Прибора (опц.)", instrumentNumberEntry),
+		widget.NewFormItem("Глубина замера (MD)", measuredDepthEntry), // measure_depth REAL NOT NULL
+		widget.NewFormItem("", widget.NewLabel("Остальные параметры (TVD, Дебиты и т.д.)\nрассчитываются или пока не реализованы.")),
+	}
+
+	// 3. Создаем и показываем диалог формы
+	formDialog := dialog.NewForm(
+		"Заполнение Шапки Отчета (Блок 5)",
+		"Сохранить",
+		"Отмена",
+		formItems,
+		func(save bool) {
+			if !save {
+				s.zLog.Debugw("Block 5 form cancelled")
+				return
+			}
+			s.zLog.Debugw("Block 5 form submitted")
+
+			// 4. Валидация при сохранении (Fyne сделает это автоматически перед вызовом callback,
+			if fieldNameSelect.Selected == "" || horizonSelect.Selected == "" || instrumentTypeSelect.Selected == "" {
+				dialog.ShowInformation("Ошибка", "Пожалуйста, выберите значения из выпадающих списков.", s.window)
+				return
+			}
+
+			// 5. Собираем данные из формы в models.TableFive
+			var report models.TableFive
+
+			report.FieldName = fieldNameSelect.Selected
+			report.Horizon = horizonSelect.Selected
+			report.InstrumentType = instrumentTypeSelect.Selected
+
+			var convErrs []string
+			var err error
+
+			if report.FieldNumber, err = strconv.Atoi(fieldNumberEntry.Text); err != nil {
+				convErrs = append(convErrs, fmt.Sprintf("№ Скважины: %v", err))
+			}
+			if clusterNumberEntry.Text != "" {
+				cn, err := strconv.Atoi(clusterNumberEntry.Text)
+				if err != nil {
+					convErrs = append(convErrs, fmt.Sprintf("№ Куста: %v", err))
+				} else {
+					report.ClusterNumber = &cn
+				}
+			}
+			if instrumentNumberEntry.Text != "" {
+				in, err := strconv.Atoi(instrumentNumberEntry.Text)
+				if err != nil {
+					convErrs = append(convErrs, fmt.Sprintf("№ Прибора: %v", err))
+				} else {
+					report.InstrumentNumber = &in
+				}
+			}
+			if report.MeasuredDepth, err = strconv.ParseFloat(measuredDepthEntry.Text, 64); err != nil {
+				convErrs = append(convErrs, fmt.Sprintf("Глубина замера (MD): %v", err))
+			}
+			if report.StartTime, err = s.converter.ParseFlexibleTime(startTimeEntry.Text); err != nil {
+				convErrs = append(convErrs, fmt.Sprintf("Дата начала: %v", err))
+			}
+			if report.EndTime, err = s.converter.ParseFlexibleTime(endTimeEntry.Text); err != nil {
+				convErrs = append(convErrs, fmt.Sprintf("Дата окончания: %v", err))
+			}
+
+			// --- Установка заглушек для NOT NULL полей, которые не заполняем/рассчитываем ---
+			report.TrueVerticalDepth = 0.0       // REAL NOT NULL
+			report.TrueVerticalDepthSubSea = 0.0 // REAL NOT NULL
+			report.VDPMeasuredDepth = 0.0        // REAL NOT NULL
+			report.DensityOil = 0.0              // REAL NOT NULL
+			report.DensityLiquidStopped = 0.0    // REAL NOT NULL
+			report.DensityLiquidWorking = 0.0    // REAL NOT NULL
+			// Nullable поля (`*float64`, `*int`) останутся nil, если не были заданы.
+
+			if len(convErrs) > 0 {
+				dialog.ShowError(fmt.Errorf("Ошибки конвертации данных:\n%s", strings.Join(convErrs, "\n")), s.window)
+				return
+			}
+
+			// 6. Вызываем сервис БД для сохранения
+			id, err := s.db.SaveReport(report)
+			if err != nil {
+				s.zLog.Errorw("Failed to save report (Block 5)", "error", err)
+				dialog.ShowError(fmt.Errorf("Ошибка сохранения отчета в БД: %w", err), s.window)
+				return
+			}
+
+			s.zLog.Infow("Report (Block 5) saved successfully", "id", id)
+			dialog.ShowInformation("Успех", fmt.Sprintf("Шапка отчета успешно сохранена (ID: %d)", id), s.window)
+
+		},
+		s.window,
+	)
+	formDialog.Resize(fyne.NewSize(450, 500))
+	formDialog.Show()
+}
+
+// --- Методы для индикатора загрузки ---
+func (s *Service) showLoadingIndicator(fileName string) {
+	s.loadingLabel.SetText(fmt.Sprintf("Обработка файла: %s...", fileName))
+	s.loadingLabel.Show()
+	s.progressBar.Show()
+	s.zLog.Debugw("Showing loading indicator", "file", fileName)
+}
+
+func (s *Service) hideLoadingIndicator(err error) {
+	s.loadingLabel.Hide()
+	s.progressBar.Hide()
+	s.zLog.Debugw("Hiding loading indicator", "error", err)
+
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("Ошибка: %w", err), s.window)
+	}
+}
+
 // doTableOneImport делает парсинг TableOne, сохраняет, логирует и выводит результат.
 func (s *Service) doTableOneImport(path string, cfg models.OperationConfig) {
+
+	var finalErr error
+	defer func() {
+		s.hideLoadingIndicator(finalErr)
+	}()
+
 	start := time.Now()
 	data, err := s.importer.ParseBlockOneFile(path, cfg)
 	count := len(data)
 	if err != nil {
+		finalErr = err 
 		s.zLog.Errorw("TableOne import failed", "error", err, "duration", time.Since(start))
-		dialog.ShowError(err, s.window)
 		return
 	}
 	if err2 := s.memBlocksStorage.AddBlockOneData(data); err2 != nil {
+		finalErr = fmt.Errorf("ошибка сохранения: %w", err2) 
 		s.zLog.Errorw("TableOne save failed", "error", err2)
-		dialog.ShowError(fmt.Errorf("ошибка сохранения: %w", err2), s.window)
 		return
 	}
+
+	// Если дошли сюда, ошибок не было (importErr == nil)
 	elapsed := time.Since(start)
 	s.zLog.Infow("TableOne import success", "count", count, "duration", elapsed)
-	dialog.ShowInformation(
-		"Готово",
-		fmt.Sprintf("TableOne: %d записей импортировано за %s", count, elapsed.Round(time.Millisecond)),
-		s.window,
-	)
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		dialog.ShowInformation(
+			"Готово",
+			fmt.Sprintf("TableOne: %d записей импортировано за %s", count, elapsed.Round(time.Millisecond)),
+			s.window,
+		)
+	}()
 }
 
 // doGenericImport обрабатывает TableTwo/TableThree.
 func (s *Service) doGenericImport(path, typ string) {
-	start := time.Now()
-	var count int
-	var err error
+	fileName := filepath.Base(path)
+	s.showLoadingIndicator(fileName)
 
-	switch typ {
-	case "TableTwo":
-		var data []models.TableTwo
-		data, err = s.importer.ParseBlockTwoFile(path)
-		count = len(data)
-		if err == nil {
-			err = s.memBlocksStorage.AddBlockTwoData(data)
-		}
-	case "TableThree":
-		var data []models.TableThree
-		data, err = s.importer.ParseBlockThreeFile(path)
-		count = len(data)
-		if err == nil {
-			err = s.memBlocksStorage.AddBlockThreeData(data)
+	// Запускаем сам импорт в горутине
+	go func() {
+		var finalErr error
+		var count int
+		start := time.Now()
+
+		defer func() {
+			s.hideLoadingIndicator(finalErr)
+		}()
+
+		switch typ {
+		case "TableTwo":
+			var data []models.TableTwo
+			data, finalErr = s.importer.ParseBlockTwoFile(path)
+			count = len(data)
+			if finalErr == nil {
+				finalErr = s.memBlocksStorage.AddBlockTwoData(data)
+			}
+		case "TableThree":
+			var data []models.TableThree
+			data, finalErr = s.importer.ParseBlockThreeFile(path)
+			count = len(data)
+			if finalErr == nil {
+				finalErr = s.memBlocksStorage.AddBlockThreeData(data)
+			}
+		case "TableFour":
+			var data []models.TableFour
+			data, finalErr = s.importer.ParseBlockFourFile(path)
+			count = len(data)
+			if finalErr == nil {
+				finalErr = s.memBlocksStorage.AddBlockFourData(data)
+			}
 		}
 
-	case "TableFour":
-		// Инклинометрия
-		var data []models.TableFour
-		data, err = s.importer.ParseBlockFourFile(path)
-		count = len(data)
-		if err == nil {
-			// Реализуйте в BlocksStorage метод AddBlockFourData
-			err = s.memBlocksStorage.AddBlockFourData(data)
+		if finalErr != nil {
+			s.zLog.Errorw(typ+" import failed", "error", finalErr, "duration", time.Since(start))
+			return
 		}
-	}
 
-	if err != nil {
-		s.zLog.Errorw(typ+" import failed", "error", err, "duration", time.Since(start))
-		dialog.ShowError(err, s.window)
-		return
-	}
-	elapsed := time.Since(start)
-	s.zLog.Infow(typ+" import success", "count", count, "duration", elapsed)
-	dialog.ShowInformation(
-		"Готово",
-		fmt.Sprintf("%s: %d записей импортировано за %s", typ, count, elapsed.Round(time.Millisecond)),
-		s.window,
-	)
+		// Успех
+		elapsed := time.Since(start)
+		s.zLog.Infow(typ+" import success", "count", count, "duration", elapsed)
+
+		// Показываем сообщение об успехе ПОСЛЕ скрытия индикатора
+		// Запускаем это тоже в горутине, чтобы не блокировать выход из текущей
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			dialog.ShowInformation(
+				"Готово",
+				fmt.Sprintf("%s: %d записей импортировано за %s", typ, count, elapsed.Round(time.Millisecond)),
+				s.window,
+			)
+		}()
+	}()
 }
