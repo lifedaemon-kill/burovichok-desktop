@@ -73,11 +73,7 @@ func bootstrap(ctx context.Context) error {
 	zLog.Infow("Migrations applied successfully")
 
 	// 5. Создание сервиса работы с БД
-	dbService, err := database.NewService(pg.DB, zLog)
-	if err != nil {
-		zLog.Errorw("database.NewService", "error", err)
-		return err
-	}
+	dbService := database.NewService(pg, zLog)
 
 	// 6. Инициализация доменных сервисов
 	converter := converterService.NewService()
