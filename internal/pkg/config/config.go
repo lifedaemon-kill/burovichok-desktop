@@ -35,8 +35,12 @@ func Load(configPath string) (*Config, error) {
 }
 
 type DBConf struct {
-	DSN            string `yaml:"dsn" env-required:"true"`
-	MigrationsPath string `yaml:"migration_path" env-required:"true"`
+	DSN             string `yaml:"dsn"`
+	MigrationsPath  string `yaml:"confmigration_path"`
+	MaxOpenConns    int    `yaml:"max_open_conns"`
+	MaxIdleConns    int    `yaml:"max_Idle_conns"`
+	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
+	MaxRetries      int    `yaml:"max_retries"`
 }
 
 type LoggerConf struct {
