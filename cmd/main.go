@@ -84,9 +84,7 @@ func bootstrap(ctx context.Context) error {
 
 	// 7. Запуск UI
 	ui := uiService.NewService(
-		conf.UI.Name,
-		conf.UI.Width,
-		conf.UI.Height,
+		conf.UI,
 		zLog,
 		importer,
 		converter,

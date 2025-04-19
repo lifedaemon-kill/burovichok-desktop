@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -24,10 +25,9 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 
-	"github.com/pkg/browser"
-
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	inmemoryStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
+	"github.com/pkg/browser"
 )
 
 type importer interface {
@@ -60,12 +60,12 @@ type Service struct {
 	progressBar  *widget.ProgressBarInfinite
 }
 
-func NewService(title string, w, h int, zLog logger.Logger, imp importer, converter converterService,
+func NewService(cfg config.UI, zLog logger.Logger, imp importer, converter converterService,
 	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db database.Service, chart chartService.Service) *Service {
 	a := app.New()
 	// chartSvc := chartService.NewService() // Сервис теперь передается снаружи
-	win := a.NewWindow(title)
-	win.Resize(fyne.NewSize(float32(w), float32(h)))
+	win := a.NewWindow(cfg.Name)
+	win.Resize(fyne.NewSize(float32(cfg.Width), float32(cfg.Height)))
 
 	loadingLbl := widget.NewLabel("Идет обработка...")
 	loadingLbl.Hide()
@@ -642,12 +642,12 @@ func (s *Service) doTableOneImport(path string, cfg models.OperationConfig) {
 	data, err := s.importer.ParseBlockOneFile(path, cfg)
 	count := len(data)
 	if err != nil {
-		finalErr = err 
+		finalErr = err
 		s.zLog.Errorw("TableOne import failed", "error", err, "duration", time.Since(start))
 		return
 	}
 	if err2 := s.memBlocksStorage.AddBlockOneData(data); err2 != nil {
-		finalErr = fmt.Errorf("ошибка сохранения: %w", err2) 
+		finalErr = fmt.Errorf("ошибка сохранения: %w", err2)
 		s.zLog.Errorw("TableOne save failed", "error", err2)
 		return
 	}

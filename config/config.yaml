@@ -15,3 +15,4 @@ ui:
   name: "burovichok"
   width: 1000
   height: 600
+  icon_path: "assets/icon.png"

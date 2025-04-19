@@ -48,7 +48,8 @@ type LoggerConf struct {
 }
 
 type UI struct {
-	Name   string `yaml:"name" env-required:"true"`
-	Width  int    `yaml:"width" env-required:"true"`
-	Height int    `yaml:"height" env-required:"true"`
+	Name     string `yaml:"name" env-required:"true"`
+	Width    int    `yaml:"width" env-required:"true"`
+	Height   int    `yaml:"height" env-required:"true"`
+	IconPath string `yaml:"icon_path" env-required:"true"`
 }
