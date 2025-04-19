@@ -4,8 +4,12 @@ logger:
   env: prod  # prod или dev отвечает за уровень логирования
 
 db:
-  dsn: "tests/database/example.db"
-  migration_path: "migrations"
+  dsn: "postgres://postgres:84625@127.0.0.1:5432/burovichok?sslmode=disable"
+  confmigration_path: "migrations"
+  max_open_conns:    1
+  max_Idle_conns:    1
+  conn_max_lifetime: 10
+  max_retries:       10
 
 ui:
   name: "burovichok"

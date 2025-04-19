@@ -2,8 +2,9 @@ package sqlite
 
 import (
 	"github.com/jmoiron/sqlx"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
 
 func NewGuidebookStorage(db *sqlx.DB) (GuidebooksStorage, error) {
