@@ -15,6 +15,11 @@ type InstrumentType struct {
 	Name string `db:"name"`
 }
 
+// ResearchType Тип исследования
+type ResearchType struct {
+	Name string `db:"name"`
+}
+
 // TableName возвращает имя таблицы для ProductiveHorizon
 func (ProductiveHorizon) TableName() string {
 	return "productive_horizon"
@@ -58,4 +63,19 @@ func (InstrumentType) Columns() []string {
 // Map конвертирует InstrumentType в map[column]value
 func (i InstrumentType) Map() map[string]interface{} {
 	return map[string]interface{}{"name": i.Name}
+}
+
+// TableName возвращает имя таблицы для ResearchType
+func (ResearchType) TableName() string {
+	return "research_type"
+}
+
+// Columns возвращает список колонок для ResearchType
+func (ResearchType) Columns() []string {
+	return []string{"name"}
+}
+
+// Map конвертирует ResearchType в map[column]value
+func (r ResearchType) Map() map[string]interface{} {
+	return map[string]interface{}{"name": r.Name}
 }
