@@ -22,9 +22,10 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/pkg/browser"
+
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	inmemoryStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
-	"github.com/pkg/browser"
 )
 
 type importer interface {
@@ -215,15 +216,23 @@ func (s *Service) Run() error {
 	// 1) поле выбора файла + кнопка
 	pathEntry := widget.NewEntry()
 	pathEntry.PlaceHolder = "Файл не выбран"
+
 	chooseBtn := widget.NewButton("Выбрать файл", func() {
 		d := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
-			if r == nil || err != nil {
+			// 1) Ошибка при открытии диалога
+			if err != nil {
 				dialog.ShowError(err, s.window)
 				return
 			}
+			// 2) Пользователь нажал «Cancel» — r == nil и err == nil
+			if r == nil {
+				return
+			}
+			// 3) Успешно выбрали файл
 			defer r.Close()
 			pathEntry.SetText(r.URI().Path())
 		}, s.window)
+
 		d.SetFilter(storage.NewExtensionFileFilter([]string{".xlsx"}))
 		d.Show()
 	})

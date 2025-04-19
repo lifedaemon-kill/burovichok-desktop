@@ -2,43 +2,6 @@ package models
 
 import "time"
 
-// TableOne — Блок 1. Загрузка забойного давления и температуры
-// Поля соответствуют колонкам Excel через теги xlsx
-type TableOne struct {
-	Timestamp        time.Time `xlsx:"Дата, время"`
-	PressureDepth    float64   `xlsx:"Рзаб на глубине замера, кгс/см2"`
-	TemperatureDepth float64   `xlsx:"Tзаб на глубине замера, °C"`
-	PressureAtVDP    *float64  // расчётное поле
-}
-
-// TableTwo — Блок 2. Замеры трубного, затрубного и линейного давления
-type TableTwo struct {
-	TimestampTubing  time.Time `xlsx:"Дата трубного замера, Дата, время"`
-	PressureTubing   float64   `xlsx:"Ртр, кгс/см2"`
-	TimestampAnnulus time.Time `xlsx:"Дата затрубного замера, Дата, время"`
-	PressureAnnulus  float64   `xlsx:"Рзтр, кгс/см2"`
-	TimestampLinear  time.Time `xlsx:"Дата линейного замера, Дата, время"`
-	PressureLinear   float64   `xlsx:"Рлин, кгс/см2"`
-}
-
-// TableThree — Блок 3. Дебиты жидкости, воды, газа и расчётные поля
-type TableThree struct {
-	Timestamp     time.Time `xlsx:"Дата, время"`
-	FlowLiquid    float64   `xlsx:"Qж, м3/сут"`
-	WaterCut      float64   `xlsx:"W, %"`
-	FlowGas       float64   `xlsx:"Qг, тыс.м3/сут"`
-	OilFlowRate   *float64  // Qн, расчётное поле
-	WaterFlowRate *float64  // Qв, расчётное поле
-	GasOilRatio   *float64  // ГФ, расчётное поле
-}
-
-// TableFour — Блок 4. Инклинометрия (MD, TVD, TVDSS)
-type TableFour struct {
-	MeasuredDepth           float64 `xlsx:"Глубина по стволу, м" db:"measure_depth"`                // MD
-	TrueVerticalDepth       float64 `xlsx:"Глубина по вертикали, м" db:"true_vertical_depth"`       // TVD
-	TrueVerticalDepthSubSea float64 `xlsx:"Абсолютная глубина, м" db:"true_vertical_depth_sub_sea"` // TVDSS
-}
-
 // TableFive — Блок 5. Общие сведения об исследовании
 // Поля берутся из формы или справочников, поэтому xlsx-тегов нет
 type TableFive struct {
@@ -64,19 +27,60 @@ type TableFive struct {
 	PressureDiffWorking     *float64  `db:"pressure_diff_working"`       // ΔP работы, расчётное
 }
 
-// Справочники
-
-// ProductiveHorizon Б1, Б2, Б3...
-type ProductiveHorizon struct {
-	Name string `db:"name"`
+// TableName имя таблицы.
+func (TableFive) TableName() string {
+	return "reports"
 }
 
-// OilField Наименование месторождения
-type OilField struct {
-	Name string `db:"name"`
+// Columns возвращает список имён колонок таблицы reports в том порядке,
+// в котором они обычно используются для SELECT.
+func (TableFive) Columns() []string {
+	return []string{
+		"field_name",
+		"field_number",
+		"cluster_number",
+		"horizon",
+		"start_time",
+		"end_time",
+		"instrument_type",
+		"instrument_number",
+		"measure_depth",
+		"true_vertical_depth",
+		"true_vertical_depth_sub_sea",
+		"vdp_measured_depth",
+		"vdp_true_vertical_depth",
+		"vdp_true_vertical_depth_sea",
+		"diff_instrument_vdp",
+		"density_oil",
+		"density_liquid_stopped",
+		"density_liquid_working",
+		"pressure_diff_stopped",
+		"pressure_diff_working",
+	}
 }
 
-// InstrumentType Тип прибора, например, ГС-АМТС, PPS 25, КАМА-2
-type InstrumentType struct {
-	Name string `db:"name"`
+// Map конвертация TableFive в map[string]interface{}.
+func (t TableFive) Map() map[string]any {
+	return map[string]any{
+		"field_name":                  t.FieldName,
+		"field_number":                t.FieldNumber,
+		"cluster_number":              t.ClusterNumber,
+		"horizon":                     t.Horizon,
+		"start_time":                  t.StartTime,
+		"end_time":                    t.EndTime,
+		"instrument_type":             t.InstrumentType,
+		"instrument_number":           t.InstrumentNumber,
+		"measure_depth":               t.MeasuredDepth,
+		"true_vertical_depth":         t.TrueVerticalDepth,
+		"true_vertical_depth_sub_sea": t.TrueVerticalDepthSubSea,
+		"vdp_measured_depth":          t.VDPMeasuredDepth,
+		"vdp_true_vertical_depth":     t.VDPTrueVerticalDepth,
+		"vdp_true_vertical_depth_sea": t.VDPTrueVerticalDepthSea,
+		"diff_instrument_vdp":         t.DiffInstrumentVDP,
+		"density_oil":                 t.DensityOil,
+		"density_liquid_stopped":      t.DensityLiquidStopped,
+		"density_liquid_working":      t.DensityLiquidWorking,
+		"pressure_diff_stopped":       t.PressureDiffStopped,
+		"pressure_diff_working":       t.PressureDiffWorking,
+	}
 }
