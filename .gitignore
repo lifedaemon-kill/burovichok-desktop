@@ -28,4 +28,4 @@ config/values_local.yaml
 
 tests/database/example.db
 
-build/postgres
+build/postgres/
