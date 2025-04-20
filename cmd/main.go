@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -83,6 +84,11 @@ func bootstrap(ctx context.Context) error {
 	inMemoryStorage := inmemory.NewInMemoryBlocksStorage()
 
 	// 7. Запуск UI
+	err = os.Setenv("LANG", "ru_RU.UTF-8")
+	if err != nil {
+		return errors.Wrap(err, "os.SetEnv")
+	}
+
 	ui := uiService.NewService(
 		conf.UI,
 		zLog,
