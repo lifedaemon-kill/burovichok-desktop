@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/postgres"
@@ -15,9 +17,9 @@ type Service struct {
 }
 
 // NewService создаёт Service, используя Postgres
-func NewService(pg *postgres.Postgres, zLog logger.Logger) Service {
+func NewService(pg *postgres.Postgres, zLog logger.Logger) *Service {
 	zLog.Infow("Postgres repository initialized successfully")
-	return Service{pg: pg, log: zLog}
+	return &Service{pg: pg, log: zLog}
 }
 
 // GetAllReports возвращает все TableFive
@@ -28,6 +30,7 @@ func (d *Service) GetAllReports() ([]models.TableFive, error) {
 		return nil, err
 	}
 	d.log.Debugw("GetAllReports succeeded", "count", len(reports))
+
 	return reports, nil
 }
 
@@ -39,6 +42,7 @@ func (d *Service) SaveReport(tableFive models.TableFive) (int64, error) {
 		return 0, err
 	}
 	d.log.Debugw("SaveReport succeeded", "id", id)
+
 	return id, nil
 }
 
@@ -50,6 +54,7 @@ func (d *Service) GetAllInstrumentTypes() ([]models.InstrumentType, error) {
 		return nil, err
 	}
 	d.log.Debugw("GetAllInstrumentTypes succeeded", "count", len(items))
+
 	return items, nil
 }
 
@@ -61,6 +66,7 @@ func (d *Service) GetAllProductiveHorizons() ([]models.ProductiveHorizon, error)
 		return nil, err
 	}
 	d.log.Debugw("GetAllProductiveHorizons succeeded", "count", len(items))
+
 	return items, nil
 }
 
@@ -72,6 +78,7 @@ func (d *Service) GetAllOilFields() ([]models.OilField, error) {
 		return nil, err
 	}
 	d.log.Debugw("GetAllOilFields succeeded", "count", len(items))
+
 	return items, nil
 }
 
@@ -83,6 +90,7 @@ func (d *Service) GetAllResearchTypes() ([]models.ResearchType, error) {
 		return nil, err
 	}
 	d.log.Debugw("GetAllResearchTypes succeeded", "count", len(items))
+
 	return items, nil
 }
 
@@ -93,6 +101,7 @@ func (d *Service) SaveInstrumentTypes(types []models.InstrumentType) error {
 		return err
 	}
 	d.log.Debugw("SaveInstrumentTypes succeeded", "count", len(types))
+
 	return nil
 }
 
@@ -103,6 +112,7 @@ func (d *Service) SaveOilFields(fields []models.OilField) error {
 		return err
 	}
 	d.log.Debugw("SaveOilFields succeeded", "count", len(fields))
+
 	return nil
 }
 
@@ -113,6 +123,7 @@ func (d *Service) SaveProductiveHorizons(horizons []models.ProductiveHorizon) er
 		return err
 	}
 	d.log.Debugw("SaveProductiveHorizons succeeded", "count", len(horizons))
+
 	return nil
 }
 
@@ -123,5 +134,28 @@ func (d *Service) SaveResearchTypes(researches []models.ResearchType) error {
 		return err
 	}
 	d.log.Debugw("SaveResearchTypes succeeded", "count", len(researches))
+
 	return nil
+}
+
+func (d *Service) GetBlockFourByResearchID(ctx context.Context, researchID uuid.UUID) ([]models.TableFour, error) {
+	res, err := d.pg.GetBlockFourByID(ctx, researchID)
+	if err != nil {
+		d.log.Errorw("GetBlockFourByWell failed", "error", err)
+		return nil, err
+	}
+	d.log.Debugw("GetBlockFourByWell succeeded")
+
+	return res, nil
+}
+
+func (d *Service) SaveBlockFour(ctx context.Context, items []models.TableFour) (uuid.UUID, error) {
+	id, err := d.pg.AddBlockFour(ctx, items)
+	if err != nil {
+		d.log.Errorw("SaveResearchTypes failed", "error", err)
+		return uuid.Nil, err
+	}
+	d.log.Debugw("SaveResearchTypes succeeded", "count", len(items))
+
+	return id, nil
 }

@@ -5,17 +5,18 @@ import "time"
 // TableFive — Блок 5. Общие сведения об исследовании
 // Поля берутся из формы или справочников, поэтому xlsx-тегов нет
 type TableFive struct {
+	ID                      int       `db:"id"`
 	FieldName               string    `db:"field_name"`                  // Месторождение
 	FieldNumber             int       `db:"field_number"`                // № скважины
-	ClusterNumber           *int      `db:"cluster_number"`              // № кустовой площадки (может быть не у всех)
+	ClusterNumber           int       `db:"cluster_number"`              // № кустовой площадки (может быть не у всех)
 	Horizon                 string    `db:"horizon"`                     // Продуктивный горизонт
 	StartTime               time.Time `db:"start_time"`                  // Дата начала исследования
 	EndTime                 time.Time `db:"end_time"`                    // Дата окончания исследования
 	InstrumentType          string    `db:"instrument_type"`             // Тип прибора
-	InstrumentNumber        *int      `db:"instrument_number"`           // № прибора (может быть не у всех)
+	InstrumentNumber        int       `db:"instrument_number"`           // № прибора (может быть не у всех)
 	MeasuredDepth           float64   `db:"measure_depth"`               // MD
-	TrueVerticalDepth       float64   `db:"true_vertical_depth"`         // TVD
-	TrueVerticalDepthSubSea float64   `db:"true_vertical_depth_sub_sea"` // TVDSS // Данные инклинометрии
+	TrueVerticalDepth       *float64  `db:"true_vertical_depth"`         // TVD
+	TrueVerticalDepthSubSea *float64  `db:"true_vertical_depth_sub_sea"` // TVDSS // Данные инклинометрии
 	VDPMeasuredDepth        float64   `db:"vdp_measured_depth"`          // MD ВДП
 	VDPTrueVerticalDepth    *float64  `db:"vdp_true_vertical_depth"`     // TVD ВДП, расчётное
 	VDPTrueVerticalDepthSea *float64  `db:"vdp_true_vertical_depth_sea"` // TVDSS ВДП, расчётное
@@ -36,6 +37,7 @@ func (TableFive) TableName() string {
 // в котором они обычно используются для SELECT.
 func (TableFive) Columns() []string {
 	return []string{
+		"id",
 		"field_name",
 		"field_number",
 		"cluster_number",

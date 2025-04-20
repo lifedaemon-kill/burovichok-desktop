@@ -38,7 +38,7 @@ func (p *Postgres) AddBlockFive(ctx context.Context, data models.TableFive) (int
 		return 0, errors.Wrap(err, "building AddBlockFive query")
 	}
 	var id int64
-	if err := p.DB.QueryRowContext(ctx, sqlStr, args...).Scan(&id); err != nil {
+	if err = p.DB.QueryRowContext(ctx, sqlStr, args...).Scan(&id); err != nil {
 		return 0, errors.Wrap(err, "executing AddBlockFive query")
 	}
 	return id, nil

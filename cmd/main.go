@@ -78,7 +78,7 @@ func bootstrap(ctx context.Context) error {
 
 	// 6. Инициализация доменных сервисов
 	converter := converterService.NewService()
-	calc := calcService.NewService()
+	calc := calcService.NewService(dbService, zLog)
 	importer := importerService.NewService(calc, converter)
 	chartSvc := chartService.NewService()
 	inMemoryStorage := inmemory.NewInMemoryBlocksStorage()
@@ -97,13 +97,14 @@ func bootstrap(ctx context.Context) error {
 		inMemoryStorage,
 		dbService,
 		chartSvc,
+		calc,
 	)
-	if err = ui.Run(); err != nil {
+	if err = ui.Run(ctx); err != nil {
 		zLog.Errorw("UI service failed", "error", err)
 		return err
 	}
 
-	// 8. Грейсфул-шидаун
+	// 8. Грейсфул-шатдаун
 	zLog.Infow("Application shutting down...")
 	if err = pg.DB.Close(); err != nil {
 		return errors.Wrap(err, "pg.DB.Close")
