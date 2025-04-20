@@ -75,32 +75,53 @@ func (d *Service) GetAllOilFields() ([]models.OilField, error) {
 	return items, nil
 }
 
-// SaveInstrumentType сохраняет набор InstrumentType
-func (d *Service) SaveInstrumentType(types []models.InstrumentType) error {
+// GetAllResearchTypes возвращает все ResearchTypes
+func (d *Service) GetAllResearchTypes() ([]models.ResearchType, error) {
+	items, err := d.pg.GetAllResearchType(context.Background())
+	if err != nil {
+		d.log.Errorw("GetAllResearchTypes failed", "error", err)
+		return nil, err
+	}
+	d.log.Debugw("GetAllResearchTypes succeeded", "count", len(items))
+	return items, nil
+}
+
+// SaveInstrumentTypes сохраняет набор InstrumentType
+func (d *Service) SaveInstrumentTypes(types []models.InstrumentType) error {
 	if err := d.pg.AddInstrumentType(context.Background(), types); err != nil {
-		d.log.Errorw("SaveInstrumentType failed", "error", err)
+		d.log.Errorw("SaveInstrumentTypes failed", "error", err)
 		return err
 	}
-	d.log.Debugw("SaveInstrumentType succeeded", "count", len(types))
+	d.log.Debugw("SaveInstrumentTypes succeeded", "count", len(types))
 	return nil
 }
 
-// SaveOilField сохраняет набор OilField
-func (d *Service) SaveOilField(fields []models.OilField) error {
+// SaveOilFields сохраняет набор OilField
+func (d *Service) SaveOilFields(fields []models.OilField) error {
 	if err := d.pg.AddOilField(context.Background(), fields); err != nil {
-		d.log.Errorw("SaveOilField failed", "error", err)
+		d.log.Errorw("SaveOilFields failed", "error", err)
 		return err
 	}
-	d.log.Debugw("SaveOilField succeeded", "count", len(fields))
+	d.log.Debugw("SaveOilFields succeeded", "count", len(fields))
 	return nil
 }
 
-// SaveProductiveHorizon сохраняет набор ProductiveHorizon
-func (d *Service) SaveProductiveHorizon(horizons []models.ProductiveHorizon) error {
+// SaveProductiveHorizons сохраняет набор ProductiveHorizon
+func (d *Service) SaveProductiveHorizons(horizons []models.ProductiveHorizon) error {
 	if err := d.pg.AddProductiveHorizon(context.Background(), horizons); err != nil {
-		d.log.Errorw("SaveProductiveHorizon failed", "error", err)
+		d.log.Errorw("SaveProductiveHorizons failed", "error", err)
 		return err
 	}
-	d.log.Debugw("SaveProductiveHorizon succeeded", "count", len(horizons))
+	d.log.Debugw("SaveProductiveHorizons succeeded", "count", len(horizons))
+	return nil
+}
+
+// SaveResearchTypes сохраняет набор ResearchType
+func (d *Service) SaveResearchTypes(researches []models.ResearchType) error {
+	if err := d.pg.AddResearchType(context.Background(), researches); err != nil {
+		d.log.Errorw("SaveResearchTypes failed", "error", err)
+		return err
+	}
+	d.log.Debugw("SaveResearchTypes succeeded", "count", len(researches))
 	return nil
 }
