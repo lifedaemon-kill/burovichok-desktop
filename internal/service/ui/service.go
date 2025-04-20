@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -11,23 +10,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/database"
-
-	chartService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/chart"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/validation"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
-
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
-	inmemoryStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
 	"github.com/pkg/browser"
+
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
+	chartService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/chart"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/database"
+	inmemoryStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
 )
 
 type importer interface {
