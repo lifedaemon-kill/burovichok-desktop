@@ -62,9 +62,9 @@ type Service struct {
 }
 
 func NewService(cfg config.UI, zLog logger.Logger, imp importer, converter converterService,
-	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db *database.Service, chart chartService.Service, calc *calc.Service) *Service {
+	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db *database.Service, chart chartService.Service, calcSvc *calc.Service) *Service {
+
 	a := app.New()
-	// chartSvc := chartService.NewService() // Сервис теперь передается снаружи
 	win := a.NewWindow(cfg.Name)
 	win.Resize(fyne.NewSize(float32(cfg.Width), float32(cfg.Height)))
 
@@ -82,37 +82,32 @@ func NewService(cfg config.UI, zLog logger.Logger, imp importer, converter conve
 		db:               db,
 		converter:        converter,
 		chart:            chart,
+		calc:             calcSvc,
 		loadingLabel:     loadingLbl,
 		progressBar:      progressBr,
-		calc:             calc,
 	}
 }
 
-// --- Методы для управления веб-сервером ---
+// --- веб‑сервер для графиков ---
 
 func (s *Service) startLocalWebServer() error {
 	s.serverMutex.Lock()
 	defer s.serverMutex.Unlock()
-
 	if s.serverListener != nil {
 		return nil
 	}
 
 	s.zLog.Infow("Starting local chart web server...")
-
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		s.zLog.Errorw("Failed to find free port for chart server", "error", err)
 		return fmt.Errorf("не удалось найти порт для сервера графика: %w", err)
 	}
-	s.serverListener = listener
-	s.serverPort = strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
-	s.zLog.Infow("Chart server listening", "address", listener.Addr().String())
+	s.serverListener = ln
+	s.serverPort = strconv.Itoa(ln.Addr().(*net.TCPAddr).Port)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.serveChartHTML)
 
-	// Запускаем сервер в отдельной горутине, чтобы не блокировать UI
 	go func() {
 		if err := http.Serve(s.serverListener, mux); err != nil && err != http.ErrServerClosed {
 			s.zLog.Errorw("Chart server error", "error", err)
@@ -123,26 +118,197 @@ func (s *Service) startLocalWebServer() error {
 		}
 		s.zLog.Infow("Chart server stopped.")
 	}()
-
 	return nil
 }
 
 func (s *Service) serveChartHTML(w http.ResponseWriter, r *http.Request) {
 	s.serverMutex.Lock()
-	htmlPath := s.chartHtmlToServe
+	html := s.chartHtmlToServe
 	s.serverMutex.Unlock()
 
-	if htmlPath == "" {
+	if html == "" {
 		http.Error(w, "График еще не сгенерирован", http.StatusNotFound)
-		s.zLog.Errorw("Request for chart before generation")
 		return
 	}
-
-	s.zLog.Infow("Serving chart HTML", "path", htmlPath)
-	http.ServeFile(w, r, htmlPath) // Отдаем файл
+	http.ServeFile(w, r, html)
 }
 
-// --- Конец методов веб-сервера ---
+// --- Навигация между разделами ---
+
+func (s *Service) showMainMenu(ctx context.Context) {
+	cell := fyne.NewSize(400, 200)
+
+	importsBtn := widget.NewButton("импорты", func() { s.showImportView(ctx) })
+	reportsBtn := widget.NewButton("отчёты", func() { s.showReportsView(ctx) })
+	chartsBtn := widget.NewButton("графики", func() { s.showChartsView(ctx) })
+
+	// NewGridWrap принимает размер ячейки — и «упаковывает» каждый элемент в box этого размера
+	grid := container.NewGridWrap(cell,
+		importsBtn,
+		reportsBtn,
+		chartsBtn,
+	)
+
+	s.window.SetContent(container.NewCenter(grid))
+}
+
+func (s *Service) showImportView(ctx context.Context) {
+	back := widget.NewButton("◀ Домой", func() { s.showMainMenu(ctx) })
+	content := s.buildImportContent(ctx)
+	s.window.SetContent(container.NewBorder(back, nil, nil, nil, content))
+}
+
+func (s *Service) showReportsView(ctx context.Context) {
+	back := widget.NewButton("◀ Домой", func() { s.showMainMenu(ctx) })
+	// Отчёты: только блок 5
+	reportBtn := widget.NewButton("Заполнить Шапку Отчета (Блок 5)", func() {
+		s.showBlockFiveForm(ctx)
+	})
+	s.window.SetContent(container.NewBorder(back, nil, nil, nil,
+		container.NewVBox(
+			widget.NewLabel("Отчёты"),
+			widget.NewSeparator(),
+			reportBtn,
+		),
+	))
+}
+
+func (s *Service) showChartsView(ctx context.Context) {
+	back := widget.NewButton("◀ Домой", func() { s.showMainMenu(ctx) })
+	chartBtn := widget.NewButton("Интерактивный График T/P (Блок 1)", func() {
+		// вставьте сюда тот же код из Run для chartBtn
+		blockOneData, err := s.memBlocksStorage.GetAllBlockOneData()
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("не удалось получить данные Блока 1: %w", err), s.window)
+			return
+		}
+		if len(blockOneData) == 0 {
+			dialog.ShowInformation("Нет данных", "Недостаточно данных для построения графика", s.window)
+			return
+		}
+		htmlPath, err := s.chart.GeneratePressureTempChart(blockOneData)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("ошибка генерации HTML графика: %w", err), s.window)
+			return
+		}
+		s.serverMutex.Lock()
+		s.chartHtmlToServe = htmlPath
+		s.serverMutex.Unlock()
+		if err := s.startLocalWebServer(); err != nil {
+			dialog.ShowError(fmt.Errorf("ошибка запуска веб-сервера для графика: %w", err), s.window)
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+		s.serverMutex.Lock()
+		port := s.serverPort
+		s.serverMutex.Unlock()
+		if port == "" {
+			dialog.ShowError(fmt.Errorf("не удалось получить порт веб-сервера"), s.window)
+			return
+		}
+		url := fmt.Sprintf("http://127.0.0.1:%s/", port)
+		if err := browser.OpenURL(url); err != nil {
+			dialog.ShowError(fmt.Errorf("не удалось открыть браузер: %w", err), s.window)
+		}
+	})
+
+	s.window.SetContent(container.NewBorder(back, nil, nil, nil,
+		container.NewVBox(
+			widget.NewLabel("Графики"),
+			widget.NewSeparator(),
+			chartBtn,
+		),
+	))
+}
+
+func (s *Service) Run(ctx context.Context) error {
+	s.window.SetOnClosed(func() {
+		s.serverMutex.Lock()
+		if s.serverListener != nil {
+			s.serverListener.Close()
+			s.serverListener = nil
+			s.serverPort = ""
+		}
+		s.serverMutex.Unlock()
+	})
+
+	s.showMainMenu(ctx)
+	s.window.ShowAndRun()
+	return nil
+}
+
+// --- Построение содержимого импортов ---
+
+func (s *Service) buildImportContent(ctx context.Context) fyne.CanvasObject {
+	// 1) путь
+	pathEntry := widget.NewEntry()
+	pathEntry.PlaceHolder = "Файл не выбран"
+	chooseBtn := widget.NewButton("Выбрать файл", func() {
+		d := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
+			if err != nil {
+				dialog.ShowError(err, s.window)
+				return
+			}
+			if r == nil {
+				return
+			}
+			defer r.Close()
+			pathEntry.SetText(r.URI().Path())
+		}, s.window)
+		d.SetFilter(storage.NewExtensionFileFilter([]string{".xlsx"}))
+		d.Show()
+	})
+
+	// 2) тип документа
+	docTypes := []string{"TableOne", "TableTwo", "TableThree", "TableFour"}
+	typeSelect := widget.NewSelect(docTypes, nil)
+	typeSelect.PlaceHolder = "Выберите тип документа"
+
+	// 3) Import
+	importBtn := widget.NewButton("Import", func() {
+		path := pathEntry.Text
+		typ := typeSelect.Selected
+		if path == "" || typ == "" {
+			dialog.ShowInformation("Ошибка", "Сначала выберите файл и тип документа", s.window)
+			return
+		}
+		if typ == "TableOne" {
+			showTableOneForm(s, path)
+		} else {
+			s.doGenericImport(ctx, path, typ)
+		}
+	})
+
+	// 4) Очистка хранилища
+	clearBtn := widget.NewButton("Очистить хранилище", func() {
+		dialog.ShowConfirm("Подтверждение", "Удалить все данные?", func(ok bool) {
+			if !ok {
+				return
+			}
+			if err := s.memBlocksStorage.ClearAll(); err != nil {
+				dialog.ShowError(fmt.Errorf("ошибка очистки: %w", err), s.window)
+				return
+			}
+			dialog.ShowInformation("Очищено", "Данные удалены", s.window)
+		}, s.window)
+	})
+
+	// Собираем всё в VBox
+	return container.NewVBox(
+		widget.NewLabel("Импорт данных"),
+		widget.NewSeparator(),
+		widget.NewLabel("1. Выберите файл и тип:"),
+		container.New(&ratioLayout{ratio: 0.7}, pathEntry, chooseBtn),
+		typeSelect,
+		widget.NewSeparator(),
+		widget.NewLabel("2. Действия:"),
+		importBtn,
+		clearBtn,
+		widget.NewSeparator(),
+	)
+}
+
+// --- Далее ваши существующие формы и методы ---
 
 type ratioLayout struct{ ratio float32 }
 
@@ -164,156 +330,6 @@ func (r *ratioLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 		}
 	}
 	return fyne.NewSize(0, h)
-}
-
-func (s *Service) Run(ctx context.Context) error {
-	s.window.SetOnClosed(func() {
-		s.serverMutex.Lock()
-		if s.serverListener != nil {
-			s.zLog.Infow("Closing chart server...")
-			s.serverListener.Close()
-			s.serverListener = nil
-			s.serverPort = ""
-		}
-		s.serverMutex.Unlock()
-	})
-
-	chartBtn := widget.NewButton("Интерактивный График T/P (Блок 1)", func() {
-		blockOneData, err := s.memBlocksStorage.GetAllBlockOneData()
-		if err != nil {
-			s.zLog.Errorw("Failed to get BlockOne data for chart", "error", err)
-			dialog.ShowError(fmt.Errorf("не удалось получить данные Блока 1: %w", err), s.window)
-			return
-		}
-		if len(blockOneData) == 0 {
-			dialog.ShowInformation("Нет данных", "Недостаточно данных для построения графика", s.window)
-			return
-		}
-
-		htmlPath, err := s.chart.GeneratePressureTempChart(blockOneData)
-		if err != nil {
-			s.zLog.Errorw("Failed to generate chart HTML", "error", err)
-			dialog.ShowError(fmt.Errorf("ошибка генерации HTML графика: %w", err), s.window)
-			return
-		}
-
-		s.serverMutex.Lock()
-		s.chartHtmlToServe = htmlPath
-		s.serverMutex.Unlock()
-
-		if err := s.startLocalWebServer(); err != nil {
-			dialog.ShowError(fmt.Errorf("ошибка запуска веб-сервера для графика: %w", err), s.window)
-			return
-		}
-
-		// Даем серверу микро-паузу на старт (не самое элегантное решение, но простое)
-		time.Sleep(100 * time.Millisecond)
-
-		s.serverMutex.Lock()
-		port := s.serverPort
-		s.serverMutex.Unlock()
-
-		if port == "" {
-			dialog.ShowError(fmt.Errorf("не удалось получить порт веб-сервера"), s.window)
-			return
-		}
-		chartURL := fmt.Sprintf("http://127.0.0.1:%s/", port)
-		s.zLog.Infow("Opening chart in browser", "url", chartURL)
-
-		err = browser.OpenURL(chartURL)
-		if err != nil {
-			s.zLog.Errorw("Failed to open browser for chart", "error", err)
-			dialog.ShowError(fmt.Errorf("не удалось открыть браузер: %w", err), s.window)
-			return
-		}
-	})
-
-	// 1) поле выбора файла + кнопка
-	pathEntry := widget.NewEntry()
-	pathEntry.PlaceHolder = "Файл не выбран"
-
-	chooseBtn := widget.NewButton("Выбрать файл", func() {
-		d := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
-			// 1) Ошибка при открытии диалога
-			if err != nil {
-				dialog.ShowError(err, s.window)
-				return
-			}
-			// 2) Пользователь нажал «Cancel» — r == nil и err == nil
-			if r == nil {
-				return
-			}
-			// 3) Успешно выбрали файл
-			defer r.Close()
-			pathEntry.SetText(r.URI().Path())
-		}, s.window)
-
-		d.SetFilter(storage.NewExtensionFileFilter([]string{".xlsx"}))
-		d.Show()
-	})
-
-	// 2) выбор типа документа
-	docTypes := []string{"TableOne", "TableTwo", "TableThree", "TableFour"}
-	typeSelect := widget.NewSelect(docTypes, nil)
-	typeSelect.PlaceHolder = "Выберите тип документа"
-
-	// 3) кнопка Import
-	importBtn := widget.NewButton("Import", func() {
-		path := pathEntry.Text
-		typ := typeSelect.Selected
-		if path == "" || typ == "" {
-			dialog.ShowInformation("Ошибка", "Сначала выберите файл и тип документа", s.window)
-			return
-		}
-
-		// если TableOne — сначала собираем параметры
-		if typ == "TableOne" {
-			showTableOneForm(s, path)
-		} else {
-			s.doGenericImport(ctx, path, typ)
-		}
-	})
-
-	// 4) кнопка очистки хранилища
-	clearBtn := widget.NewButton("Очистить хранилище", func() {
-		dialog.ShowConfirm("Подтверждение", "Удалить все данные?", func(ok bool) {
-			if !ok {
-				return
-			}
-			if err := s.memBlocksStorage.ClearAll(); err != nil {
-				s.zLog.Errorw("Clear failed", "error", err)
-				dialog.ShowError(fmt.Errorf("ошибка очистки: %w", err), s.window)
-				return
-			}
-			dialog.ShowInformation("Очищено", "Данные удалены", s.window)
-		}, s.window)
-	})
-
-	guidebookBtn := widget.NewButton("Заполнить Шапку Отчета (Блок 5)", func() {
-		s.showBlockFiveForm(ctx)
-	})
-
-	header := container.New(&ratioLayout{ratio: 0.7}, pathEntry, chooseBtn)
-	content := container.NewVBox(
-		widget.NewLabel("1. Выберите файл и тип данных:"),
-		header,
-		typeSelect,
-		widget.NewSeparator(),
-		widget.NewLabel("2. Выполните действия:"),
-		importBtn,
-		guidebookBtn,
-		chartBtn,
-		widget.NewSeparator(),
-		widget.NewLabel("3. Управление хранилищем:"),
-		clearBtn,
-		widget.NewSeparator(),
-		s.loadingLabel,
-		s.progressBar,
-	)
-
-	s.window.SetContent(content)
-	s.window.ShowAndRun()
-	return nil
 }
 
 // showTableOneForm показывает форму параметров гидростатики и по клику "Ок" запускает импорт.
