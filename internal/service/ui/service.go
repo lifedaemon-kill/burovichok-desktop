@@ -459,19 +459,19 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 	s.zLog.Debugw("Opening Block 5 form")
 
 	// 1. Загружаем справочники из БД
-	oilFieldsModels, err := s.db.GetAllOilFields()
+	oilFieldsModels, err := s.db.GetAllOilFields(ctx)
 	if err != nil {
 		s.zLog.Errorw("Failed to get oil fields", "error", err)
 		dialog.ShowError(fmt.Errorf("Ошибка загрузки месторождений: %w", err), s.window)
 		return
 	}
-	horizonsModels, err := s.db.GetAllProductiveHorizons()
+	horizonsModels, err := s.db.GetAllProductiveHorizons(ctx)
 	if err != nil {
 		s.zLog.Errorw("Failed to get horizons", "error", err)
 		dialog.ShowError(fmt.Errorf("Ошибка загрузки горизонтов: %w", err), s.window)
 		return
 	}
-	instrumentTypesModels, err := s.db.GetAllInstrumentTypes()
+	instrumentTypesModels, err := s.db.GetAllInstrumentTypes(ctx)
 	if err != nil {
 		s.zLog.Errorw("Failed to get instrument types", "error", err)
 		dialog.ShowError(fmt.Errorf("Ошибка загрузки типов приборов: %w", err), s.window)
@@ -619,7 +619,7 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 
 			report = s.calc.CalcBlockFive(ctx, report, researchID)
 
-			id, err := s.db.SaveReport(report)
+			id, err := s.db.SaveReport(ctx, report)
 			if err != nil {
 				s.zLog.Errorw("Failed to save report (Block 5)", "error", err)
 				dialog.ShowError(fmt.Errorf("ошибка сохранения: %w", err), s.window)

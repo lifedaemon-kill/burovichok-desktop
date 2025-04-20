@@ -23,8 +23,8 @@ func NewService(pg *postgres.Postgres, zLog logger.Logger) *Service {
 }
 
 // GetAllReports возвращает все TableFive
-func (d *Service) GetAllReports() ([]models.TableFive, error) {
-	reports, err := d.pg.GetAllTableFive(context.Background())
+func (d *Service) GetAllReports(ctx context.Context) ([]models.TableFive, error) {
+	reports, err := d.pg.GetAllTableFive(ctx)
 	if err != nil {
 		d.log.Errorw("GetAllReports failed", "error", err)
 		return nil, err
@@ -35,8 +35,8 @@ func (d *Service) GetAllReports() ([]models.TableFive, error) {
 }
 
 // SaveReport сохраняет TableFive и возвращает ID
-func (d *Service) SaveReport(tableFive models.TableFive) (int64, error) {
-	id, err := d.pg.AddBlockFive(context.Background(), tableFive)
+func (d *Service) SaveReport(ctx context.Context, tableFive models.TableFive) (int64, error) {
+	id, err := d.pg.AddBlockFive(ctx, tableFive)
 	if err != nil {
 		d.log.Errorw("SaveReport failed", "error", err)
 		return 0, err
@@ -47,8 +47,8 @@ func (d *Service) SaveReport(tableFive models.TableFive) (int64, error) {
 }
 
 // GetAllInstrumentTypes возвращает все InstrumentType
-func (d *Service) GetAllInstrumentTypes() ([]models.InstrumentType, error) {
-	items, err := d.pg.GetAllInstrumentType(context.Background())
+func (d *Service) GetAllInstrumentTypes(ctx context.Context) ([]models.InstrumentType, error) {
+	items, err := d.pg.GetAllInstrumentType(ctx)
 	if err != nil {
 		d.log.Errorw("GetAllInstrumentTypes failed", "error", err)
 		return nil, err
@@ -59,8 +59,8 @@ func (d *Service) GetAllInstrumentTypes() ([]models.InstrumentType, error) {
 }
 
 // GetAllProductiveHorizons возвращает все ProductiveHorizon
-func (d *Service) GetAllProductiveHorizons() ([]models.ProductiveHorizon, error) {
-	items, err := d.pg.GetAllProductiveHorizon(context.Background())
+func (d *Service) GetAllProductiveHorizons(ctx context.Context) ([]models.ProductiveHorizon, error) {
+	items, err := d.pg.GetAllProductiveHorizon(ctx)
 	if err != nil {
 		d.log.Errorw("GetAllProductiveHorizons failed", "error", err)
 		return nil, err
@@ -71,8 +71,8 @@ func (d *Service) GetAllProductiveHorizons() ([]models.ProductiveHorizon, error)
 }
 
 // GetAllOilFields возвращает все OilField
-func (d *Service) GetAllOilFields() ([]models.OilField, error) {
-	items, err := d.pg.GetAllOilField(context.Background())
+func (d *Service) GetAllOilFields(ctx context.Context) ([]models.OilField, error) {
+	items, err := d.pg.GetAllOilField(ctx)
 	if err != nil {
 		d.log.Errorw("GetAllOilFields failed", "error", err)
 		return nil, err
@@ -83,8 +83,8 @@ func (d *Service) GetAllOilFields() ([]models.OilField, error) {
 }
 
 // GetAllResearchTypes возвращает все ResearchTypes
-func (d *Service) GetAllResearchTypes() ([]models.ResearchType, error) {
-	items, err := d.pg.GetAllResearchType(context.Background())
+func (d *Service) GetAllResearchTypes(ctx context.Context) ([]models.ResearchType, error) {
+	items, err := d.pg.GetAllResearchType(ctx)
 	if err != nil {
 		d.log.Errorw("GetAllResearchTypes failed", "error", err)
 		return nil, err
@@ -95,8 +95,8 @@ func (d *Service) GetAllResearchTypes() ([]models.ResearchType, error) {
 }
 
 // SaveInstrumentTypes сохраняет набор InstrumentType
-func (d *Service) SaveInstrumentTypes(types []models.InstrumentType) error {
-	if err := d.pg.AddInstrumentType(context.Background(), types); err != nil {
+func (d *Service) SaveInstrumentTypes(ctx context.Context, types []models.InstrumentType) error {
+	if err := d.pg.AddInstrumentType(ctx, types); err != nil {
 		d.log.Errorw("SaveInstrumentTypes failed", "error", err)
 		return err
 	}
@@ -106,8 +106,8 @@ func (d *Service) SaveInstrumentTypes(types []models.InstrumentType) error {
 }
 
 // SaveOilFields сохраняет набор OilField
-func (d *Service) SaveOilFields(fields []models.OilField) error {
-	if err := d.pg.AddOilField(context.Background(), fields); err != nil {
+func (d *Service) SaveOilFields(ctx context.Context, fields []models.OilField) error {
+	if err := d.pg.AddOilField(ctx, fields); err != nil {
 		d.log.Errorw("SaveOilFields failed", "error", err)
 		return err
 	}
@@ -117,8 +117,8 @@ func (d *Service) SaveOilFields(fields []models.OilField) error {
 }
 
 // SaveProductiveHorizons сохраняет набор ProductiveHorizon
-func (d *Service) SaveProductiveHorizons(horizons []models.ProductiveHorizon) error {
-	if err := d.pg.AddProductiveHorizon(context.Background(), horizons); err != nil {
+func (d *Service) SaveProductiveHorizons(ctx context.Context, horizons []models.ProductiveHorizon) error {
+	if err := d.pg.AddProductiveHorizon(ctx, horizons); err != nil {
 		d.log.Errorw("SaveProductiveHorizons failed", "error", err)
 		return err
 	}
@@ -128,8 +128,8 @@ func (d *Service) SaveProductiveHorizons(horizons []models.ProductiveHorizon) er
 }
 
 // SaveResearchTypes сохраняет набор ResearchType
-func (d *Service) SaveResearchTypes(researches []models.ResearchType) error {
-	if err := d.pg.AddResearchType(context.Background(), researches); err != nil {
+func (d *Service) SaveResearchTypes(ctx context.Context, researches []models.ResearchType) error {
+	if err := d.pg.AddResearchType(ctx, researches); err != nil {
 		d.log.Errorw("SaveResearchTypes failed", "error", err)
 		return err
 	}
@@ -152,10 +152,10 @@ func (d *Service) GetBlockFourByResearchID(ctx context.Context, researchID uuid.
 func (d *Service) SaveBlockFour(ctx context.Context, items []models.TableFour) (uuid.UUID, error) {
 	id, err := d.pg.AddBlockFour(ctx, items)
 	if err != nil {
-		d.log.Errorw("SaveResearchTypes failed", "error", err)
+		d.log.Errorw("SaveBlockFour failed", "error", err)
 		return uuid.Nil, err
 	}
-	d.log.Debugw("SaveResearchTypes succeeded", "count", len(items))
+	d.log.Debugw("SaveBlockFour succeeded", "count", len(items))
 
 	return id, nil
 }
