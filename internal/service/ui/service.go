@@ -18,6 +18,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
+	"github.com/google/uuid"
 	"github.com/pkg/browser"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
@@ -594,12 +595,18 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 
 			// Расчет и сохранение остаётся без изменений
 			researchID := s.memBlocksStorage.GetResearchID()
+			if researchID == uuid.Nil {
+				s.zLog.Errorw("Failed to Get ResearchID", "error", err)
+				dialog.ShowError(fmt.Errorf("вы не импортировали блок 4 для отчетов"), s.window)
+				return
+			}
+
 			report = s.calc.CalcBlockFive(ctx, report, researchID)
 
 			id, err := s.db.SaveReport(report)
 			if err != nil {
 				s.zLog.Errorw("Failed to save report (Block 5)", "error", err)
-				dialog.ShowError(fmt.Errorf("Ошибка сохранения: %w", err), s.window)
+				dialog.ShowError(fmt.Errorf("ошибка сохранения: %w", err), s.window)
 				return
 			}
 			dialog.ShowInformation("Успех", fmt.Sprintf("ID отчёта: %d", id), s.window)
