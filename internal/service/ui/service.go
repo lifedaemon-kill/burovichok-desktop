@@ -709,6 +709,8 @@ func (s *Service) doGenericImport(ctx context.Context, path, typ string) {
 				if dbErr == nil {
 					s.memBlocksStorage.SetResearchID(id)
 					finalErr = s.memBlocksStorage.AddBlockFourData(data)
+				} else {
+					finalErr = dbErr
 				}
 			}
 		}
