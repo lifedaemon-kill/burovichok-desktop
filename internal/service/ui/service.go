@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -22,6 +23,7 @@ import (
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/calc"
 	chartService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/chart"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/database"
 	inmemoryStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
@@ -44,9 +46,10 @@ type Service struct {
 	zLog             logger.Logger
 	importer         importer
 	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage
-	db               database.Service
+	db               *database.Service
 	converter        converterService
 	chart            chartService.Service
+	calc             *calc.Service
 
 	serverMutex      sync.Mutex
 	serverListener   net.Listener
@@ -58,7 +61,7 @@ type Service struct {
 }
 
 func NewService(cfg config.UI, zLog logger.Logger, imp importer, converter converterService,
-	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db database.Service, chart chartService.Service) *Service {
+	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db *database.Service, chart chartService.Service, calc *calc.Service) *Service {
 	a := app.New()
 	// chartSvc := chartService.NewService() // Сервис теперь передается снаружи
 	win := a.NewWindow(cfg.Name)
@@ -80,6 +83,7 @@ func NewService(cfg config.UI, zLog logger.Logger, imp importer, converter conve
 		chart:            chart,
 		loadingLabel:     loadingLbl,
 		progressBar:      progressBr,
+		calc:             calc,
 	}
 }
 
@@ -161,7 +165,7 @@ func (r *ratioLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(0, h)
 }
 
-func (s *Service) Run() error {
+func (s *Service) Run(ctx context.Context) error {
 	s.window.SetOnClosed(func() {
 		s.serverMutex.Lock()
 		if s.serverListener != nil {
@@ -265,7 +269,7 @@ func (s *Service) Run() error {
 		if typ == "TableOne" {
 			showTableOneForm(s, path)
 		} else {
-			s.doGenericImport(path, typ)
+			s.doGenericImport(ctx, path, typ)
 		}
 	})
 
@@ -285,7 +289,7 @@ func (s *Service) Run() error {
 	})
 
 	guidebookBtn := widget.NewButton("Заполнить Шапку Отчета (Блок 5)", func() {
-		s.showBlockFiveForm()
+		s.showBlockFiveForm(ctx)
 	})
 
 	header := container.New(&ratioLayout{ratio: 0.7}, pathEntry, chooseBtn)
@@ -434,7 +438,7 @@ func showTableOneForm(s *Service, path string) {
 }
 
 // --- НОВАЯ ФУНКЦИЯ: Показ формы для Блока 5 ---
-func (s *Service) showBlockFiveForm() {
+func (s *Service) showBlockFiveForm(ctx context.Context) {
 	s.zLog.Debugw("Opening Block 5 form")
 
 	// 1. Загружаем справочники из БД
@@ -591,7 +595,11 @@ func (s *Service) showBlockFiveForm() {
 				return
 			}
 
-			// 6. Вызываем сервис БД для сохранения
+			// 6. Делает авторасчет
+			researchID := s.memBlocksStorage.GetResearchID()
+			report = s.calc.CalcBlockFive(ctx, report, researchID)
+
+			// 7. Вызываем сервис БД для сохранения
 			id, err := s.db.SaveReport(report)
 			if err != nil {
 				s.zLog.Errorw("Failed to save report (Block 5)", "error", err)
@@ -663,7 +671,7 @@ func (s *Service) doTableOneImport(path string, cfg models.OperationConfig) {
 }
 
 // doGenericImport обрабатывает TableTwo/TableThree.
-func (s *Service) doGenericImport(path, typ string) {
+func (s *Service) doGenericImport(ctx context.Context, path, typ string) {
 	fileName := filepath.Base(path)
 	s.showLoadingIndicator(fileName)
 
@@ -697,7 +705,11 @@ func (s *Service) doGenericImport(path, typ string) {
 			data, finalErr = s.importer.ParseBlockFourFile(path)
 			count = len(data)
 			if finalErr == nil {
-				finalErr = s.memBlocksStorage.AddBlockFourData(data)
+				id, dbErr := s.db.SaveBlockFour(ctx, data)
+				if dbErr == nil {
+					s.memBlocksStorage.SetResearchID(id)
+					finalErr = s.memBlocksStorage.AddBlockFourData(data)
+				}
 			}
 		}
 

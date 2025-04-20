@@ -3,8 +3,9 @@ package postgres
 import (
 	"context"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/cockroachdb/errors"
-	_ "github.com/lib/pq"
+	"github.com/google/uuid"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
@@ -78,18 +79,36 @@ func (p *Postgres) GetAllResearchType(ctx context.Context) ([]models.ResearchTyp
 
 // AddOilField вставляет записи в таблицу oilfield
 func (p *Postgres) AddOilField(ctx context.Context, fields []models.OilField) error {
-	for _, f := range fields {
-		qb := psql().
-			Insert(models.OilField{}.TableName()).
-			SetMap(f.Map())
+	if len(fields) == 0 {
+		return nil
+	}
 
-		sqlStr, args, err := qb.ToSql()
-		if err != nil {
-			return errors.Wrap(err, "building AddOilField query")
-		}
-		if _, err := p.DB.ExecContext(ctx, sqlStr, args...); err != nil {
-			return errors.Wrap(err, "executing AddOilField query")
-		}
+	tx, err := p.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return errors.Wrap(err, "starting AddOilField transaction")
+	}
+	defer tx.Rollback()
+
+	qb := psql().
+		Insert(models.OilField{}.TableName()).
+		Columns(models.OilField{}.Columns()...)
+
+	for _, f := range fields {
+		qb = qb.Values(
+			f.Name,
+		)
+	}
+
+	sqlStr, args, err := qb.ToSql()
+	if err != nil {
+		return errors.Wrap(err, "building AddOilField batch query")
+	}
+	if _, err := tx.ExecContext(ctx, sqlStr, args...); err != nil {
+		return errors.Wrap(err, "executing AddOilField batch query")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errors.Wrap(err, "committing AddOilField transaction")
 	}
 	return nil
 }
@@ -145,4 +164,75 @@ func (p *Postgres) AddResearchType(ctx context.Context, items []models.ResearchT
 		}
 	}
 	return nil
+}
+
+func (p *Postgres) GetBlockFourByID(ctx context.Context, researchID uuid.UUID) ([]models.TableFour, error) {
+	qb := psql().
+		Select(models.TableFour{}.Columns()...).
+		From(models.TableFour{}.TableName()).
+		Where(sq.Eq{"research_id": researchID}).
+		OrderBy("measure_depth ASC")
+
+	sqlStr, args, err := qb.ToSql()
+	if err != nil {
+		return nil, errors.Wrap(err, "GetBlockFourByResearch: error building query")
+	}
+
+	rows, err := p.DB.QueryContext(ctx, sqlStr, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "GetBlockFourByResearch: query execution failed")
+	}
+	defer rows.Close()
+
+	var results []models.TableFour
+	for rows.Next() {
+		var rec models.TableFour
+		if err := rows.Scan(
+			&rec.ResearchID,
+			&rec.MeasuredDepth,
+			&rec.TrueVerticalDepth,
+			&rec.TrueVerticalDepthSubSea,
+		); err != nil {
+			return nil, errors.Wrap(err, "GetBlockFourByResearch: scan failed")
+		}
+		results = append(results, rec)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "GetBlockFourByResearch: rows iteration error")
+	}
+
+	return results, nil
+}
+
+// AddBlockFour вставляет сразу несколько записей инклинометрии,
+// генерируя единый research_id = uuid.New() для всех строк.
+// Возвращает сгенерированный UUID, чтобы при необходимости его
+// использовали дальше (например, для связи с блоком 5).
+func (p *Postgres) AddBlockFour(ctx context.Context, items []models.TableFour) (uuid.UUID, error) {
+	researchID := uuid.New()
+
+	qb := psql().
+		Insert(models.TableFour{}.TableName()).
+		Columns(models.TableFour{}.Columns()...)
+
+	for _, it := range items {
+		qb = qb.Values(
+			researchID,
+			it.MeasuredDepth,
+			it.TrueVerticalDepth,
+			it.TrueVerticalDepthSubSea,
+		)
+	}
+
+	sqlStr, args, err := qb.ToSql()
+	if err != nil {
+		return uuid.Nil, errors.Wrap(err, "AddBlockFour: build query")
+	}
+
+	if _, err := p.DB.ExecContext(ctx, sqlStr, args...); err != nil {
+		return uuid.Nil, errors.Wrap(err, "AddBlockFour: exec inserts")
+	}
+
+	return researchID, nil
 }

@@ -1,6 +1,11 @@
 package calc
 
 import (
+	"context"
+
+	"github.com/google/uuid"
+
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
 
@@ -13,12 +18,22 @@ import (
 
 const g = 9.80665 // м/с²
 
+type DataLoader interface {
+	GetBlockFourByResearchID(ctx context.Context, researchID uuid.UUID) ([]models.TableFour, error)
+}
+
 // Service отвечает за логику расчетов данных в моделях.
-type Service struct{}
+type Service struct {
+	dataLoader DataLoader
+	logger     logger.Logger
+}
 
 // NewService создает новый экземпляр сервис импорта.
-func NewService() *Service {
-	return &Service{}
+func NewService(dataLoader DataLoader, logger logger.Logger) *Service {
+	return &Service{
+		dataLoader: dataLoader,
+		logger:     logger,
+	}
 }
 
 // CalcTableOne применяет гидростатику к одной записи, возвращая с заполненным PressureVPD.
@@ -77,9 +92,69 @@ func (s *Service) CalcBlockThree(tbl models.TableThree) models.TableThree {
 	return tbl
 }
 
-func (s *Service) CalcBlockFive(table models.TableFive) models.TableFive {
-	// TODO
-	return models.TableFive{}
+// CalcBlockFive calculates automatic fields for TableFive using Block 4 survey data.
+func (s *Service) CalcBlockFive(ctx context.Context, tbl models.TableFive, researchID uuid.UUID) models.TableFive {
+	// 1. Получаем данные инклинометрии (Block 4) для скважины
+	survey, err := s.dataLoader.GetBlockFourByResearchID(ctx, researchID)
+	if err != nil {
+		s.logger.Errorw("CalcBlockFive: failed to get block four data", "error", err)
+		return tbl
+	}
+
+	// 2. Вычисляем TVD и TVDSS для прибора по MD
+	tvd, tvdss := interpolateTVD(survey, tbl.MeasuredDepth)
+	tbl.TrueVerticalDepth = tvd
+	tbl.TrueVerticalDepthSubSea = tvdss
+
+	// 3. Если задана MD перфорации (VDP), рассчитываем ее отметки
+	if tbl.VDPMeasuredDepth > 0 {
+		vdpTVD, vdpTVDSS := interpolateTVD(survey, tbl.VDPMeasuredDepth)
+		tbl.VDPTrueVerticalDepth = &vdpTVD
+		tbl.VDPTrueVerticalDepthSea = &vdpTVDSS
+
+		// 4. Разница между прибором и ВДП по абсолютным отметкам (TVDSS)
+		delta := tbl.TrueVerticalDepthSubSea - vdpTVDSS
+		tbl.DiffInstrumentVDP = &delta
+
+		// 5. Гидростатическое давление (ΔP = ρ * g * Δh)
+		//    g = 9.81 m/s²
+		const g = 9.81
+		heightDiff := tbl.TrueVerticalDepthSubSea - vdpTVDSS
+		pStopped := tbl.DensityLiquidStopped * g * heightDiff
+		pWorking := tbl.DensityLiquidWorking * g * heightDiff
+		tbl.PressureDiffStopped = &pStopped
+		tbl.PressureDiffWorking = &pWorking
+	}
+
+	return tbl
+}
+
+// interpolateTVD performs linear interpolation on survey data to find TVD and TVDSS at a given MD.
+func interpolateTVD(survey []models.TableFour, md float64) (tvd, tvdss float64) {
+	if len(survey) == 0 {
+		return 0, 0
+	}
+
+	// Если MD меньше минимального, возвращаем первую точку
+	if md <= survey[0].MeasuredDepth {
+		return survey[0].TrueVerticalDepth, survey[0].TrueVerticalDepthSubSea
+	}
+
+	// Ищем два соседних замера для интерполяции
+	for i := 1; i < len(survey); i++ {
+		prev := survey[i-1]
+		curr := survey[i]
+		if md <= curr.MeasuredDepth {
+			ratio := (md - prev.MeasuredDepth) / (curr.MeasuredDepth - prev.MeasuredDepth)
+			tvd = prev.TrueVerticalDepth + ratio*(curr.TrueVerticalDepth-prev.TrueVerticalDepth)
+			tvdss = prev.TrueVerticalDepthSubSea + ratio*(curr.TrueVerticalDepthSubSea-prev.TrueVerticalDepthSubSea)
+			return tvd, tvdss
+		}
+	}
+
+	// Если MD больше максимального, возвращаем последнюю точку
+	last := survey[len(survey)-1]
+	return last.TrueVerticalDepth, last.TrueVerticalDepthSubSea
 }
 
 // конвертация в Паскали и обратно

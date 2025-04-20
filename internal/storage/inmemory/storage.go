@@ -2,8 +2,11 @@
 package inmemory
 
 import (
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 	"sync"
+
+	"github.com/google/uuid"
+
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
 
 //можешно импортировать несколько файлов одного или разных типов, данные будут накапливаться. Кнопка "Очистить хранилище" удалит всё из памяти. Хранятся в Storage
@@ -29,6 +32,9 @@ type InMemoryBlocksStorage interface {
 	CountBlockOne() int
 	CountBlockTwo() int
 	CountBlockThree() int
+
+	SetResearchID(researchID uuid.UUID)
+	GetResearchID() uuid.UUID
 }
 
 // Storage реализует интерфейс storage.InMemoryBlocksStorage, храня данные в памяти.
@@ -38,6 +44,7 @@ type Storage struct {
 	blockTwoData   []models.TableTwo
 	blockThreeData []models.TableThree
 	inclinometry   []models.TableFour
+	researchID     uuid.UUID
 }
 
 // NewInMemoryBlocksStorage создает новый экземпляр Storage.
@@ -138,4 +145,12 @@ func (s *Storage) AddBlockFourData(data []models.TableFour) error {
 	defer s.mu.Unlock()
 	s.inclinometry = append(s.inclinometry, data...)
 	return nil // В in-memory обычно нет ошибок добавления, кроме нехватки памяти (panic)
+}
+
+func (s *Storage) SetResearchID(researchID uuid.UUID) {
+	s.researchID = researchID
+}
+
+func (s *Storage) GetResearchID() uuid.UUID {
+	return s.researchID
 }
