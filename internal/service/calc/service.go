@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/samber/lo"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
@@ -103,8 +104,8 @@ func (s *Service) CalcBlockFive(ctx context.Context, tbl models.TableFive, resea
 
 	// 2. Вычисляем TVD и TVDSS для прибора по MD
 	tvd, tvdss := interpolateTVD(survey, tbl.MeasuredDepth)
-	tbl.TrueVerticalDepth = tvd
-	tbl.TrueVerticalDepthSubSea = tvdss
+	tbl.TrueVerticalDepth = lo.ToPtr(tvd)
+	tbl.TrueVerticalDepthSubSea = lo.ToPtr(tvdss)
 
 	// 3. Если задана MD перфорации (VDP), рассчитываем ее отметки
 	if tbl.VDPMeasuredDepth > 0 {
@@ -113,13 +114,18 @@ func (s *Service) CalcBlockFive(ctx context.Context, tbl models.TableFive, resea
 		tbl.VDPTrueVerticalDepthSea = &vdpTVDSS
 
 		// 4. Разница между прибором и ВДП по абсолютным отметкам (TVDSS)
-		delta := tbl.TrueVerticalDepthSubSea - vdpTVDSS
-		tbl.DiffInstrumentVDP = &delta
+		if tbl.TrueVerticalDepthSubSea != nil {
+			delta := *tbl.TrueVerticalDepthSubSea - vdpTVDSS
+			tbl.DiffInstrumentVDP = &delta
+		}
 
 		// 5. Гидростатическое давление (ΔP = ρ * g * Δh)
 		//    g = 9.81 m/s²
 		const g = 9.81
-		heightDiff := tbl.TrueVerticalDepthSubSea - vdpTVDSS
+		var heightDiff float64
+		if tbl.TrueVerticalDepthSubSea != nil {
+			heightDiff = *tbl.TrueVerticalDepthSubSea - vdpTVDSS
+		}
 		pStopped := tbl.DensityLiquidStopped * g * heightDiff
 		pWorking := tbl.DensityLiquidWorking * g * heightDiff
 		tbl.PressureDiffStopped = &pStopped

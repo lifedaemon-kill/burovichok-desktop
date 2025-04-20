@@ -475,104 +475,91 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 	}
 
 	// 2. Создаем виджеты для формы
-	fieldNameSelect := widget.NewSelect(oilFields, nil) // Или Entry, если надо и вводить? Пока Select.
+	// Уже существующие:
+	fieldNameSelect := widget.NewSelect(oilFields, nil)
 	fieldNumberEntry := widget.NewEntry()
 	clusterNumberEntry := widget.NewEntry()
 	horizonSelect := widget.NewSelect(horizons, nil)
-	startTimeEntry := widget.NewEntry() // TODO: Может, Date Picker? Пока Entry.
-	endTimeEntry := widget.NewEntry()   // TODO: Может, Date Picker? Пока Entry.
+	startTimeEntry := widget.NewEntry()
+	endTimeEntry := widget.NewEntry()
 	instrumentTypeSelect := widget.NewSelect(instrumentTypes, nil)
 	instrumentNumberEntry := widget.NewEntry()
 	measuredDepthEntry := widget.NewEntry()
+	vdpMeasuredDepthEntry := widget.NewEntry()
+	densityOilEntry := widget.NewEntry()
+	densityLiquidStoppedEntry := widget.NewEntry()
+	densityLiquidWorkingEntry := widget.NewEntry()
 
-	// Заглушки для полей, которые не заполняем вручную или рассчитываются
-	// Смотрим models.TableFive и create_table_five.sql
-	// true_vertical_depth - REAL NOT NULL
-	// true_vertical_depth_sub_sea - REAL NOT NULL
-	// vdp_measured_depth - REAL NOT NULL
-	// vdp_true_vertical_depth - REAL (nullable)
-	// vdp_true_vertical_depth_sea - REAL (nullable)
-	// diff_instrument_vdp - REAL (nullable)
-	// density_oil - REAL NOT NULL
-	// density_liquid_stopped - REAL NOT NULL
-	// density_liquid_working - REAL NOT NULL
-	// pressure_diff_stopped - REAL (nullable)
-	// pressure_diff_working - REAL (nullable)
-	// cluster_number - INTEGER (nullable)
-	// instrument_number - INTEGER (nullable)
+	// 3. Добавляем валидаторы
+	fieldNumberEntry.Validator = validation.NewRegexp(`^\d+$`, "Требуется число")
+	clusterNumberEntry.Validator = validation.NewRegexp(`^\d*$`, "Требуется число или пусто")
+	instrumentNumberEntry.Validator = validation.NewRegexp(`^\d*$`, "Требуется число или пусто")
+	measuredDepthEntry.Validator = validation.NewRegexp(`^\d+(\.\d+)?$`, "Требуется число")
+	startTimeEntry.Validator = validation.NewRegexp(`.+`, "Поле не может быть пустым")
+	endTimeEntry.Validator = validation.NewRegexp(`.+`, "Поле не может быть пустым")
 
-	// Добавляем валидаторы для обязательных полей (смотрим NOT NULL в SQL и не-указатели в struct)
-	fieldNumberEntry.Validator = validation.NewRegexp(`^\d+$`, "Требуется число")                // Простой пример
-	clusterNumberEntry.Validator = validation.NewRegexp(`^\d*$`, "Требуется число или пусто")    // Nullable
-	instrumentNumberEntry.Validator = validation.NewRegexp(`^\d*$`, "Требуется число или пусто") // Nullable
-	measuredDepthEntry.Validator = validation.NewRegexp(`^\d+(\.\d+)?$`, "Требуется число")      // С плавающей точкой
-	startTimeEntry.Validator = validation.NewRegexp(`.+`, "Поле не может быть пустым")           // Проверка на непустоту
-	endTimeEntry.Validator = validation.NewRegexp(`.+`, "Поле не может быть пустым")             // Проверка на непустоту
+	// Валидация для новых полей:
+	vdpMeasuredDepthEntry.Validator = validation.NewRegexp(`^\d+(\.\d+)?$`, "Требуется число")
+	densityOilEntry.Validator = validation.NewRegexp(`^\d+(\.\d+)?$`, "Требуется число")
+	densityLiquidStoppedEntry.Validator = validation.NewRegexp(`^\d+(\.\d+)?$`, "Требуется число")
+	densityLiquidWorkingEntry.Validator = validation.NewRegexp(`^\d+(\.\d+)?$`, "Требуется число")
 
-	// Создаем элементы формы
+	// 4. Формируем items
 	formItems := []*widget.FormItem{
-		widget.NewFormItem("Месторождение", fieldNameSelect), // field_name TEXT NOT NULL
-		widget.NewFormItem("№ Скважины", fieldNumberEntry),   // field_number INTEGER NOT NULL
+		widget.NewFormItem("Месторождение", fieldNameSelect),
+		widget.NewFormItem("№ Скважины", fieldNumberEntry),
 		widget.NewFormItem("№ Куста (опц.)", clusterNumberEntry),
-		widget.NewFormItem("Горизонт", horizonSelect), // horizon TEXT NOT NULL
+		widget.NewFormItem("Горизонт", horizonSelect),
 		widget.NewFormItem("Дата начала", startTimeEntry),
 		widget.NewFormItem("Дата окончания", endTimeEntry),
-		widget.NewFormItem("Тип прибора", instrumentTypeSelect), // instrument_type TEXT NOT NULL
+		widget.NewFormItem("Тип прибора", instrumentTypeSelect),
 		widget.NewFormItem("№ Прибора (опц.)", instrumentNumberEntry),
-		widget.NewFormItem("Глубина замера (MD)", measuredDepthEntry), // measure_depth REAL NOT NULL
-		widget.NewFormItem("", widget.NewLabel("Остальные параметры (TVD, Дебиты и т.д.)\nрассчитываются или пока не реализованы.")),
+		widget.NewFormItem("Глубина замера (MD)", measuredDepthEntry),
+
+		// Новые поля:
+		widget.NewFormItem("MD ВДП (VDPMeasuredDepth)", vdpMeasuredDepthEntry),
+		widget.NewFormItem("Плотность нефти (kg/m³)", densityOilEntry),
+		widget.NewFormItem("Плотность жидкости в простое (kg/m³)", densityLiquidStoppedEntry),
+		widget.NewFormItem("Плотность жидкости в работе (kg/m³)", densityLiquidWorkingEntry),
+
+		widget.NewFormItem("", widget.NewLabel("Остальные параметры (TVD, ΔP и т.д.) рассчитываются автоматически.")),
 	}
 
-	// 3. Создаем и показываем диалог формы
+	// 5. Показ диалога и обработчик Save
 	formDialog := dialog.NewForm(
 		"Заполнение Шапки Отчета (Блок 5)",
-		"Сохранить",
-		"Отмена",
+		"Сохранить", "Отмена",
 		formItems,
 		func(save bool) {
 			if !save {
 				s.zLog.Debugw("Block 5 form cancelled")
 				return
 			}
-			s.zLog.Debugw("Block 5 form submitted")
-
-			// 4. Валидация при сохранении (Fyne сделает это автоматически перед вызовом callback,
+			// Проверка обязательных селектов
 			if fieldNameSelect.Selected == "" || horizonSelect.Selected == "" || instrumentTypeSelect.Selected == "" {
-				dialog.ShowInformation("Ошибка", "Пожалуйста, выберите значения из выпадающих списков.", s.window)
+				dialog.ShowInformation("Ошибка", "Пожалуйста, выберите все необходимые значения.", s.window)
 				return
 			}
 
-			// 5. Собираем данные из формы в models.TableFive
 			var report models.TableFive
+			var convErrs []string
+			var err error
 
 			report.FieldName = fieldNameSelect.Selected
 			report.Horizon = horizonSelect.Selected
 			report.InstrumentType = instrumentTypeSelect.Selected
 
-			var convErrs []string
-			var err error
-
+			// Парсинг существующих
 			if report.FieldNumber, err = strconv.Atoi(fieldNumberEntry.Text); err != nil {
 				convErrs = append(convErrs, fmt.Sprintf("№ Скважины: %v", err))
 			}
-			if clusterNumberEntry.Text != "" {
-				cn, err := strconv.Atoi(clusterNumberEntry.Text)
-				if err != nil {
+			if cn := clusterNumberEntry.Text; cn != "" {
+				if report.ClusterNumber, err = strconv.Atoi(cn); err != nil {
 					convErrs = append(convErrs, fmt.Sprintf("№ Куста: %v", err))
-				} else {
-					report.ClusterNumber = &cn
-				}
-			}
-			if instrumentNumberEntry.Text != "" {
-				in, err := strconv.Atoi(instrumentNumberEntry.Text)
-				if err != nil {
-					convErrs = append(convErrs, fmt.Sprintf("№ Прибора: %v", err))
-				} else {
-					report.InstrumentNumber = &in
 				}
 			}
 			if report.MeasuredDepth, err = strconv.ParseFloat(measuredDepthEntry.Text, 64); err != nil {
-				convErrs = append(convErrs, fmt.Sprintf("Глубина замера (MD): %v", err))
+				convErrs = append(convErrs, fmt.Sprintf("MD: %v", err))
 			}
 			if report.StartTime, err = s.converter.ParseFlexibleTime(startTimeEntry.Text); err != nil {
 				convErrs = append(convErrs, fmt.Sprintf("Дата начала: %v", err))
@@ -580,40 +567,46 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 			if report.EndTime, err = s.converter.ParseFlexibleTime(endTimeEntry.Text); err != nil {
 				convErrs = append(convErrs, fmt.Sprintf("Дата окончания: %v", err))
 			}
+			if inTxt := instrumentNumberEntry.Text; inTxt != "" {
+				if report.InstrumentNumber, err = strconv.Atoi(inTxt); err != nil {
+					convErrs = append(convErrs, fmt.Sprintf("№ Прибора: %v", err))
+				}
+			}
 
-			// --- Установка заглушек для NOT NULL полей, которые не заполняем/рассчитываем ---
-			report.TrueVerticalDepth = 0.0       // REAL NOT NULL
-			report.TrueVerticalDepthSubSea = 0.0 // REAL NOT NULL
-			report.VDPMeasuredDepth = 0.0        // REAL NOT NULL
-			report.DensityOil = 0.0              // REAL NOT NULL
-			report.DensityLiquidStopped = 0.0    // REAL NOT NULL
-			report.DensityLiquidWorking = 0.0    // REAL NOT NULL
-			// Nullable поля (`*float64`, `*int`) останутся nil, если не были заданы.
+			// Парсинг новых вручную:
+			if report.VDPMeasuredDepth, err = strconv.ParseFloat(vdpMeasuredDepthEntry.Text, 64); err != nil {
+				convErrs = append(convErrs, fmt.Sprintf("MD ВДП: %v", err))
+			}
+			if report.DensityOil, err = strconv.ParseFloat(densityOilEntry.Text, 64); err != nil {
+				convErrs = append(convErrs, fmt.Sprintf("Плотность нефти: %v", err))
+			}
+			if report.DensityLiquidStopped, err = strconv.ParseFloat(densityLiquidStoppedEntry.Text, 64); err != nil {
+				convErrs = append(convErrs, fmt.Sprintf("Плотность жидкости в простое: %v", err))
+			}
+			if report.DensityLiquidWorking, err = strconv.ParseFloat(densityLiquidWorkingEntry.Text, 64); err != nil {
+				convErrs = append(convErrs, fmt.Sprintf("Плотность жидкости в работе: %v", err))
+			}
 
 			if len(convErrs) > 0 {
-				dialog.ShowError(fmt.Errorf("Ошибки конвертации данных:\n%s", strings.Join(convErrs, "\n")), s.window)
+				dialog.ShowError(fmt.Errorf("Ошибки конвертации:\n%s", strings.Join(convErrs, "\n")), s.window)
 				return
 			}
 
-			// 6. Делает авторасчет
+			// Расчет и сохранение остаётся без изменений
 			researchID := s.memBlocksStorage.GetResearchID()
 			report = s.calc.CalcBlockFive(ctx, report, researchID)
 
-			// 7. Вызываем сервис БД для сохранения
 			id, err := s.db.SaveReport(report)
 			if err != nil {
 				s.zLog.Errorw("Failed to save report (Block 5)", "error", err)
-				dialog.ShowError(fmt.Errorf("Ошибка сохранения отчета в БД: %w", err), s.window)
+				dialog.ShowError(fmt.Errorf("Ошибка сохранения: %w", err), s.window)
 				return
 			}
-
-			s.zLog.Infow("Report (Block 5) saved successfully", "id", id)
-			dialog.ShowInformation("Успех", fmt.Sprintf("Шапка отчета успешно сохранена (ID: %d)", id), s.window)
-
+			dialog.ShowInformation("Успех", fmt.Sprintf("ID отчёта: %d", id), s.window)
 		},
 		s.window,
 	)
-	formDialog.Resize(fyne.NewSize(450, 500))
+	formDialog.Resize(fyne.NewSize(500, 600))
 	formDialog.Show()
 }
 
