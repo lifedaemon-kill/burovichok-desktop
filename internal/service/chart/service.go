@@ -2,17 +2,16 @@ package chart
 
 import (
 	"fmt"
-	"os" 
+	"os"
 	"time"
 
-	"github.com/go-echarts/go-echarts/v2/charts" 
-	"github.com/go-echarts/go-echarts/v2/opts"   
+	"github.com/go-echarts/go-echarts/v2/charts"
+	"github.com/go-echarts/go-echarts/v2/opts"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
 
 const (
-
 	chartHTMLFilename = "burovichok_chart.html"
 )
 
@@ -27,14 +26,19 @@ func NewService() Service {
 	return &chartService{}
 }
 
-func generateEchartsData(data []models.TableOne) ([]opts.LineData, []string) {
-	items := make([]opts.LineData, 0, len(data))
+func generateEchartsData(data []models.TableOne) ([][]opts.LineData, []string) {
+	yLabels := make([][]opts.LineData, 3)
+
 	xLabels := make([]string, 0, len(data))
+
 	for _, point := range data {
-		items = append(items, opts.LineData{Value: point.PressureDepth, Name: point.Timestamp.Format(time.RFC3339)})
+		yLabels[0] = append(yLabels[0], opts.LineData{Value: point.PressureDepth, Name: point.Timestamp.Format(time.RFC3339)})
+		yLabels[1] = append(yLabels[0], opts.LineData{Value: point.PressureAtVDP, Name: point.Timestamp.Format(time.RFC3339)})
+		yLabels[2] = append(yLabels[0], opts.LineData{Value: point.TemperatureDepth, Name: point.Timestamp.Format(time.RFC3339)})
+
 		xLabels = append(xLabels, point.Timestamp.Format("15:04:05")) // Только время для краткости оси X
 	}
-	return items, xLabels
+	return yLabels, xLabels
 }
 
 func generateTempEchartsData(data []models.TableOne) []opts.LineData {
@@ -46,7 +50,7 @@ func generateTempEchartsData(data []models.TableOne) []opts.LineData {
 }
 
 func (s *chartService) GeneratePressureTempChart(data []models.TableOne) (string, error) {
-	if len(data) == 0 { 
+	if len(data) == 0 {
 		return "", fmt.Errorf("нет данных для построения графика")
 	}
 
@@ -54,8 +58,8 @@ func (s *chartService) GeneratePressureTempChart(data []models.TableOne) (string
 
 	line.SetGlobalOptions(
 		charts.WithTitleOpts(opts.Title{
-			Title:    "Давление и Температура (Блок 1)",
-			Subtitle: "Интерактивный график",
+			Title:    "Забойное давление и температура",
+			Subtitle: "",
 		}),
 		charts.WithTooltipOpts(opts.Tooltip{ // Всплывающие подсказки при наведении
 			Show:      opts.Bool(true),
@@ -75,43 +79,44 @@ func (s *chartService) GeneratePressureTempChart(data []models.TableOne) (string
 		// создают второй график и совмещают. Пока сделаем только давление для простоты.
 		// TODO: Разобраться с добавлением второй оси Y для температуры в go-echarts.
 		charts.WithLegendOpts(opts.Legend{Show: opts.Bool(true)}), // Показываем легенду
-		charts.WithDataZoomOpts(opts.DataZoom{ 
-			Type:       "slider", 
-			Start:      0,        
-			End:        100,      
-			XAxisIndex: []int{0}, 
+		charts.WithDataZoomOpts(opts.DataZoom{
+			Type:       "slider",
+			Start:      0,
+			End:        100,
+			XAxisIndex: []int{0},
 		}),
-		charts.WithToolboxOpts(opts.Toolbox{ 
+		charts.WithToolboxOpts(opts.Toolbox{
 			Show: opts.Bool(true),
 			Feature: &opts.ToolBoxFeature{
-				SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{ 
+				SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{
 					Show:  opts.Bool(true),
 					Type:  "png",
 					Name:  "pressure_chart",
 					Title: "Сохранить PNG",
 				},
-				DataZoom: &opts.ToolBoxFeatureDataZoom{ 
+				DataZoom: &opts.ToolBoxFeatureDataZoom{
 					Show:  opts.Bool(true),
 					Title: map[string]string{"zoom": "Зум", "back": "Сброс"},
 				},
-				Restore: &opts.ToolBoxFeatureRestore{ 
+				Restore: &opts.ToolBoxFeatureRestore{
 					Show:  opts.Bool(true),
 					Title: "Сброс",
 				},
 			},
 		}),
 		// Можно выбрать тему оформления
-		// charts.WithTheme(types.ThemeInfographic),
+		//charts.WithTheme(types.ThemeInfographic),
 	)
 
-	pressureData, xLabels := generateEchartsData(data)
+	tableOneData, xLabels := generateEchartsData(data)
 
 	line.SetXAxis(xLabels).
-		AddSeries("Давление", pressureData, charts.WithLineStyleOpts(opts.LineStyle{Color: "blue"})). 
-		// AddSeries("Температура", tempData, charts.WithLineStyleOpts(opts.LineStyle{Color:"red"})). // Пока без температуры
+		AddSeries("Рзаб на глубине", tableOneData[0], charts.WithLineStyleOpts(opts.LineStyle{Color: "blue"})).
+		AddSeries("Tзаб на глубине", tableOneData[1], charts.WithLineStyleOpts(opts.LineStyle{Color: "red"})).
+		AddSeries("Рзаб на ВДП", tableOneData[2], charts.WithLineStyleOpts(opts.LineStyle{Color: "green"})).
 		SetSeriesOptions(
-			charts.WithLineChartOpts(opts.LineChart{Smooth: opts.Bool(false)}), 
-			charts.WithLabelOpts(opts.Label{Show: opts.Bool(false)}),           
+			charts.WithLineChartOpts(opts.LineChart{Smooth: opts.Bool(false)}),
+			charts.WithLabelOpts(opts.Label{Show: opts.Bool(false)}),
 		)
 
 	f, err := os.Create(chartHTMLFilename)
