@@ -8,7 +8,7 @@ type TableOne struct {
 	Timestamp        time.Time `xlsx:"Дата, время"`                     // метка времени
 	PressureDepth    float64   `xlsx:"Рзаб на глубине замера, кгс/см2"` // забойное давление
 	TemperatureDepth float64   `xlsx:"Tзаб на глубине замера, °C"`      // забойная температура
-	PressureAtVDP    *float64  // расчётное поле
+	PressureAtVDP    float64   // расчётное поле
 }
 
 // TableName возвращает имя таблицы в БД для TableOne
