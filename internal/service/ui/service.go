@@ -344,6 +344,7 @@ func showTableOneForm(s *Service, path string) {
 	ir := widget.NewEntry() // Плотность (простои) (необязательно)
 	dh := widget.NewEntry() // Δh (м)
 	unit := widget.NewSelect([]string{"kgf/cm2", "bar", "atm"}, nil)
+	unit.SetSelected("kgf/cm2")
 
 	ws.PlaceHolder = "YYYY-MM-DD"
 	we.PlaceHolder = "YYYY-MM-DD"
