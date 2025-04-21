@@ -30,3 +30,5 @@ tests/database/example.db
 
 build
 *.html
+
+burovichok_chart.html
