@@ -45,9 +45,9 @@ func (s *Service) CalcTableOne(rec models.TableOne, cfg models.OperationConfig) 
 	// 2) выбираем плотность по времени
 	var rho float64
 	t := rec.Timestamp
-	if !t.Before(cfg.WorkStart) && t.Before(cfg.WorkEnd) {
+	if t.After(cfg.WorkStart) && t.Before(cfg.WorkEnd) {
 		rho = cfg.WorkDensity
-	} else if !t.Before(cfg.IdleStart) && t.Before(cfg.IdleEnd) {
+	} else if t.After(cfg.IdleStart) && t.Before(cfg.IdleEnd) {
 		rho = cfg.IdleDensity
 	} else {
 		// не попадает ни в один период
@@ -60,7 +60,7 @@ func (s *Service) CalcTableOne(rec models.TableOne, cfg models.OperationConfig) 
 	// 4) итог в Па и обратно
 	pVpd := p0 + deltaPa
 	v := fromPa(pVpd, cfg.PressureUnit)
-	rec.PressureAtVDP = &v
+	rec.PressureAtVDP = v
 	return rec
 }
 
