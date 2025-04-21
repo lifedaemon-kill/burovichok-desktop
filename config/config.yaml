@@ -4,7 +4,7 @@ logger:
   env: prod  # prod или dev отвечает за уровень логирования
 
 db:
-  dsn: "postgres://postgres:84625@127.0.0.1:5432/burovichok?sslmode=disable"
+  dsn: "postgres://postgres:zxc@127.0.0.1:5432/burovichok?sslmode=disable"
   confmigration_path: "migrations"
   max_open_conns:    1
   max_Idle_conns:    1

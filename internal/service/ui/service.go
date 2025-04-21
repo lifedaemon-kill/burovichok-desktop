@@ -305,6 +305,8 @@ func (s *Service) buildImportContent(ctx context.Context) fyne.CanvasObject {
 		importBtn,
 		clearBtn,
 		widget.NewSeparator(),
+		s.loadingLabel,
+		s.progressBar,
 	)
 }
 
@@ -478,6 +480,14 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 		return
 	}
 
+	researchTypesModels, err := s.db.GetAllResearchTypes(ctx)
+	if err != nil {
+		s.zLog.Errorw("Failed to get research types", "error", err)
+		dialog.ShowError(fmt.Errorf("Ошибка загрузки видов исследований: %w", err), s.window)
+
+		researchTypesModels = []models.ResearchType{}
+	}
+
 	oilFields := make([]string, len(oilFieldsModels))
 	for i, item := range oilFieldsModels {
 		oilFields[i] = item.Name
@@ -489,6 +499,11 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 	instrumentTypes := make([]string, len(instrumentTypesModels))
 	for i, item := range instrumentTypesModels {
 		instrumentTypes[i] = item.Name
+	}
+
+	researchTypeNames := make([]string, len(researchTypesModels))
+	for i, item := range researchTypesModels {
+		researchTypeNames[i] = item.Name
 	}
 
 	// 2. Создаем виджеты для формы
@@ -507,6 +522,9 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 	densityLiquidStoppedEntry := widget.NewEntry()
 	densityLiquidWorkingEntry := widget.NewEntry()
 
+	researchTypeSelect := widget.NewSelect(researchTypeNames, nil)
+	researchTypeSelect.PlaceHolder = "Выберите вид исследования"
+
 	// 3. Добавляем валидаторы
 	fieldNumberEntry.Validator = validation.NewRegexp(`^\d+$`, "Требуется число")
 	clusterNumberEntry.Validator = validation.NewRegexp(`^\d*$`, "Требуется число или пусто")
@@ -523,6 +541,7 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 
 	// 4. Формируем items
 	formItems := []*widget.FormItem{
+		widget.NewFormItem("Вид исследования", researchTypeSelect),
 		widget.NewFormItem("Месторождение", fieldNameSelect),
 		widget.NewFormItem("№ Скважины", fieldNumberEntry),
 		widget.NewFormItem("№ Куста (опц.)", clusterNumberEntry),
@@ -553,7 +572,7 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 				return
 			}
 			// Проверка обязательных селектов
-			if fieldNameSelect.Selected == "" || horizonSelect.Selected == "" || instrumentTypeSelect.Selected == "" {
+			if fieldNameSelect.Selected == "" || horizonSelect.Selected == "" || instrumentTypeSelect.Selected == "" || researchTypeSelect.Selected == "" {
 				dialog.ShowInformation("Ошибка", "Пожалуйста, выберите все необходимые значения.", s.window)
 				return
 			}
@@ -565,6 +584,7 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 			report.FieldName = fieldNameSelect.Selected
 			report.Horizon = horizonSelect.Selected
 			report.InstrumentType = instrumentTypeSelect.Selected
+			report.ResearchType = researchTypeSelect.Selected
 
 			// Парсинг существующих
 			if report.FieldNumber, err = strconv.Atoi(fieldNumberEntry.Text); err != nil {
@@ -635,16 +655,16 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 
 // --- Методы для индикатора загрузки ---
 func (s *Service) showLoadingIndicator(fileName string) {
+	s.zLog.Debugw("Showing loading indicator", "file", fileName)
 	s.loadingLabel.SetText(fmt.Sprintf("Обработка файла: %s...", fileName))
 	s.loadingLabel.Show()
 	s.progressBar.Show()
-	s.zLog.Debugw("Showing loading indicator", "file", fileName)
 }
 
 func (s *Service) hideLoadingIndicator(err error) {
+	s.zLog.Debugw("Hiding loading indicator", "error", err)
 	s.loadingLabel.Hide()
 	s.progressBar.Hide()
-	s.zLog.Debugw("Hiding loading indicator", "error", err)
 
 	if err != nil {
 		dialog.ShowError(fmt.Errorf("Ошибка: %w", err), s.window)
