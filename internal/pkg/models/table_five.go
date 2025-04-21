@@ -6,6 +6,7 @@ import "time"
 // Поля берутся из формы или справочников, поэтому xlsx-тегов нет
 type TableFive struct {
 	ID                      int       `db:"id"`
+	ResearchType            string    `db:"research_type"`
 	FieldName               string    `db:"field_name"`                  // Месторождение
 	FieldNumber             int       `db:"field_number"`                // № скважины
 	ClusterNumber           int       `db:"cluster_number"`              // № кустовой площадки (может быть не у всех)
@@ -39,6 +40,7 @@ func (TableFive) Columns() []string {
 	return []string{
 		"id",
 		"field_name",
+		"research_type",
 		"field_number",
 		"cluster_number",
 		"horizon",
@@ -64,6 +66,7 @@ func (TableFive) Columns() []string {
 // Map конвертация TableFive в map[string]interface{}.
 func (t TableFive) Map() map[string]any {
 	return map[string]any{
+		"research_type":               t.ResearchType,
 		"field_name":                  t.FieldName,
 		"field_number":                t.FieldNumber,
 		"cluster_number":              t.ClusterNumber,
