@@ -34,7 +34,8 @@ func main() {
 	}
 
 	<-ctx.Done()
-	time.Sleep(60 * time.Second)
+	time.Sleep(5 * time.Second)
+	os.Exit(0)
 }
 
 func bootstrap(ctx context.Context) error {

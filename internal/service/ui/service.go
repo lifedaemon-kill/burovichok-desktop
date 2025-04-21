@@ -175,7 +175,7 @@ func (s *Service) showReportsView(ctx context.Context) {
 
 func (s *Service) showChartsView(ctx context.Context) {
 	back := widget.NewButton("◀ Домой", func() { s.showMainMenu(ctx) })
-	chartBtn := widget.NewButton("Интерактивный График T/P (Блок 1)", func() {
+	chartBtn := widget.NewButton("Интерактивный График Pзаб/Тзаб (Блок 1)", func() {
 		// вставьте сюда тот же код из Run для chartBtn
 		blockOneData, err := s.memBlocksStorage.GetAllBlockOneData()
 		if err != nil {
