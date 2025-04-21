@@ -4,13 +4,15 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/cockroachdb/errors" 
+
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/postgres"
 )
 
-// Service реализует Service через Postgres хранилище
+// service реализует Service через Postgres хранилище
 type Service struct {
 	pg  *postgres.Postgres
 	log logger.Logger
@@ -45,6 +47,48 @@ func (d *Service) SaveReport(ctx context.Context, tableFive models.TableFive) (i
 
 	return id, nil
 }
+
+
+func (s *Service) AddOilFieldEntry(ctx context.Context, name string) error {
+	err := s.pg.AddOilFieldEntry(ctx, name) 
+	if err != nil {
+		s.log.Errorw("Database service failed to add oilfield entry", "name", name, "error", err)
+		return errors.Wrap(err, "database: AddOilFieldEntry failed") // Оборачиваем ошибку
+	}
+	s.log.Debugw("Database service added oilfield entry", "name", name)
+	return nil
+}
+
+func (s *Service) AddProductiveHorizonEntry(ctx context.Context, name string) error {
+	err := s.pg.AddProductiveHorizonEntry(ctx, name) 
+	if err != nil {
+		s.log.Errorw("Database service failed to add productive horizon entry", "name", name, "error", err)
+		return errors.Wrap(err, "database: AddProductiveHorizonEntry failed")
+	}
+	s.log.Debugw("Database service added productive horizon entry", "name", name)
+	return nil
+}
+
+func (s *Service) AddInstrumentTypeEntry(ctx context.Context, name string) error {
+	err := s.pg.AddInstrumentTypeEntry(ctx, name) 
+	if err != nil {
+		s.log.Errorw("Database service failed to add instrument type entry", "name", name, "error", err)
+		return errors.Wrap(err, "database: AddInstrumentTypeEntry failed")
+	}
+	s.log.Debugw("Database service added instrument type entry", "name", name)
+	return nil
+}
+
+func (s *Service) AddResearchTypeEntry(ctx context.Context, name string) error {
+	err := s.pg.AddResearchTypeEntry(ctx, name) 
+	if err != nil {
+		s.log.Errorw("Database service failed to add research type entry", "name", name, "error", err)
+		return errors.Wrap(err, "database: AddResearchTypeEntry failed")
+	}
+	s.log.Debugw("Database service added research type entry", "name", name)
+	return nil
+}
+
 
 // GetAllInstrumentTypes возвращает все InstrumentType
 func (d *Service) GetAllInstrumentTypes(ctx context.Context) ([]models.InstrumentType, error) {
