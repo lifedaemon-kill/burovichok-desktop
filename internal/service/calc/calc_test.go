@@ -21,10 +21,11 @@ func getPlugService() *Service {
 	}
 }
 func TestTableOne(t *testing.T) {
+	d, _ := time.Parse(time.DateOnly, "2022-01-01")
 	in := models.TableOne{
-		PressureDepth:    28.0,
+		PressureDepth:    230.0,
 		TemperatureDepth: 7.0,
-		Timestamp:        time.Now(),
+		Timestamp:        d,
 	}
 
 	s := getPlugService()
@@ -35,10 +36,10 @@ func TestTableOne(t *testing.T) {
 
 	conf := models.OperationConfig{
 		PressureUnit: "kgf/cm2",
-		DepthDiff:    4,
+		DepthDiff:    100,
 		WorkStart:    from,
 		WorkEnd:      to,
-		WorkDensity:  1.0,
+		WorkDensity:  6000.0,
 		IdleStart:    idlefrom,
 		IdleEnd:      idleto,
 		IdleDensity:  1.0,
@@ -46,5 +47,6 @@ func TestTableOne(t *testing.T) {
 	out := s.CalcTableOne(in, conf)
 
 	fmt.Println("in: ", in, "\nout:", out)
+	fmt.Println("res: ", out.PressureAtVDP)
 	assert.NotNil(t, out.PressureAtVDP)
 }
