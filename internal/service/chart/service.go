@@ -33,7 +33,7 @@ func generateEchartsData(data []models.TableOne) ([][]opts.LineData, []string) {
 
 	for _, point := range data {
 		yLabels[0] = append(yLabels[0], opts.LineData{Value: point.PressureDepth, Name: point.Timestamp.Format(time.RFC3339)})
-		yLabels[1] = append(yLabels[1], opts.LineData{Value: *point.PressureAtVDP, Name: point.Timestamp.Format(time.RFC3339)})
+		yLabels[1] = append(yLabels[1], opts.LineData{Value: point.PressureAtVDP, Name: point.Timestamp.Format(time.RFC3339)})
 		yLabels[2] = append(yLabels[2], opts.LineData{Value: point.TemperatureDepth, Name: point.Timestamp.Format(time.RFC3339)})
 
 		xLabels = append(xLabels, point.Timestamp.Format("15:04:05")) // Только время для краткости оси X
