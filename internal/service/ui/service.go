@@ -186,7 +186,7 @@ func (s *Service) showChartsView(ctx context.Context) {
 			dialog.ShowInformation("Нет данных", "Недостаточно данных для построения графика", s.window)
 			return
 		}
-		htmlPath, err := s.chart.GeneratePressureTempChart(blockOneData)
+		htmlPath, err := s.chart.GenerateTableOneChart(blockOneData)
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("ошибка генерации HTML графика: %w", err), s.window)
 			return
