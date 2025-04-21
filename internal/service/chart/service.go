@@ -38,6 +38,11 @@ func generateEchartsData(data []models.TableOne) ([][]opts.LineData, []string) {
 
 		xLabels = append(xLabels, point.Timestamp.Format("15:04:05")) // Только время для краткости оси X
 	}
+	/*
+		fmt.Println(yLabels[0][len(yLabels[0])-1:])
+		fmt.Println(yLabels[1][len(yLabels[1])-1:])
+		fmt.Println(yLabels[2][len(yLabels[0])-1:])
+	*/
 	return yLabels, xLabels
 }
 
@@ -112,8 +117,8 @@ func (s *chartService) GeneratePressureTempChart(data []models.TableOne) (string
 
 	line.SetXAxis(xLabels).
 		AddSeries("Рзаб на глубине", tableOneData[0], charts.WithLineStyleOpts(opts.LineStyle{Color: "blue"})).
-		AddSeries("Tзаб на глубине", tableOneData[1], charts.WithLineStyleOpts(opts.LineStyle{Color: "red"})).
-		AddSeries("Рзаб на ВДП", tableOneData[2], charts.WithLineStyleOpts(opts.LineStyle{Color: "green"})).
+		AddSeries("Рзаб на ВДП", tableOneData[1], charts.WithLineStyleOpts(opts.LineStyle{Color: "green"})).
+		AddSeries("Tзаб на глубине", tableOneData[2], charts.WithLineStyleOpts(opts.LineStyle{Color: "red"})).
 		SetSeriesOptions(
 			charts.WithLineChartOpts(opts.LineChart{Smooth: opts.Bool(false)}),
 			charts.WithLabelOpts(opts.Label{Show: opts.Bool(false)}),
