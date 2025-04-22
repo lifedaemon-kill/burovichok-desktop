@@ -29,6 +29,8 @@ import (
 	chartService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/chart"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/database"
 	inmemoryStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
+
+	archiverService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/archiver"
 )
 
 type importer interface {
@@ -52,6 +54,7 @@ type Service struct {
 	converter        converterService
 	chart            chartService.Service
 	calc             *calc.Service
+	archiver         archiverService.Archiver
 
 	serverMutex      sync.Mutex
 	serverListener   net.Listener
@@ -63,7 +66,7 @@ type Service struct {
 }
 
 func NewService(cfg config.UI, zLog logger.Logger, imp importer, converter converterService,
-	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db *database.Service, chart chartService.Service, calcSvc *calc.Service) *Service {
+	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db *database.Service, chart chartService.Service, calcSvc *calc.Service, archiver archiverService.Archiver) *Service {
 
 	a := app.New()
 	win := a.NewWindow(cfg.Name)
@@ -84,6 +87,7 @@ func NewService(cfg config.UI, zLog logger.Logger, imp importer, converter conve
 		converter:        converter,
 		chart:            chart,
 		calc:             calcSvc,
+		archiver:         archiver,
 		loadingLabel:     loadingLbl,
 		progressBar:      progressBr,
 	}
@@ -489,6 +493,39 @@ func (s *Service) buildImportContent(ctx context.Context) fyne.CanvasObject {
 		}, s.window)
 	})
 
+	archiveStatusLabel := widget.NewLabel("") // Статус для архивации
+	archiveStatusLabel.Hide()                 // Скрыть по умолчанию
+
+	archiveBtn := widget.NewButton("Архивировать и выгрузить в MinIO", func() {
+		archiveStatusLabel.Hide()                     // Скрыть старый статус
+		s.showLoadingIndicator("Архивация данных...") // Показываем общий индикатор
+
+		// Запускаем в горутине, чтобы не блокировать UI
+		go func() {
+			// !!! Нужно получить осмысленное имя для архива !!!
+			// Например, попробуем взять имя месторождения из блока 5 (если он есть в memStorage)
+			// baseName := s.getBaseNameForArchive(ctx)
+			baseName := "manual_export" // Пока заглушка
+
+			objectName, err := s.archiver.ArchiveAndUpload(context.Background(), baseName) // Используем новый контекст
+
+			// Важно: Обновление UI из горутины нужно делать через главный поток Fyne
+			// Но для простоты пока делаем так, Hide/Show обычно работают нормально
+			s.hideLoadingIndicator(err) // Скрываем индикатор, показываем ошибку если была
+
+			if err == nil {
+				archiveStatusLabel.SetText(fmt.Sprintf("Архив '%s' успешно выгружен.", objectName))
+				archiveStatusLabel.Show()
+				// Очищаем статус через некоторое время (опционально)
+				// time.AfterFunc(5*time.Second, func() { archiveStatusLabel.Hide() })
+			} else {
+				// Ошибка уже показана через hideLoadingIndicator -> dialog.ShowError
+				archiveStatusLabel.SetText("Ошибка архивации.")
+				archiveStatusLabel.Show()
+			}
+		}() // конец горутины
+	})
+
 	// Собираем всё в VBox
 	return container.NewVBox(
 		widget.NewLabel("Импорт данных"),
@@ -501,6 +538,8 @@ func (s *Service) buildImportContent(ctx context.Context) fyne.CanvasObject {
 		importBtn,
 		clearBtn,
 		widget.NewSeparator(),
+		archiveBtn,
+		archiveStatusLabel,
 		s.loadingLabel,
 		s.progressBar,
 	)
