@@ -59,7 +59,7 @@ func (s *chartService) GenerateTableOneChart(data []models.TableOne) (string, er
 		// TODO: Разобраться с добавлением второй оси Y для температуры в go-echarts.
 		charts.WithLegendOpts(opts.Legend{Show: opts.Bool(true)}), // Показываем легенду
 		charts.WithDataZoomOpts(opts.DataZoom{
-			Type:       "slider",
+			Type:       "inside",
 			Start:      0,
 			End:        100,
 			XAxisIndex: []int{0},
