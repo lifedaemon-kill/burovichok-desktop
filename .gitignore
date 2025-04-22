@@ -28,8 +28,7 @@ config/values_local.yaml
 
 tests/database/example.db
 
-build
+
 *.html
 
 burovichok_chart.html
-config/config.yaml
