@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -141,12 +142,14 @@ func (s *Service) showMainMenu(ctx context.Context) {
 	importsBtn := widget.NewButton("импорты", func() { s.showImportView(ctx) })
 	reportsBtn := widget.NewButton("отчёты", func() { s.showReportsView(ctx) })
 	chartsBtn := widget.NewButton("графики", func() { s.showChartsView(ctx) })
+	guidebooksBtn := widget.NewButton("Справочники", func() { s.showGuidebookView(ctx) })
 
 	// NewGridWrap принимает размер ячейки — и «упаковывает» каждый элемент в box этого размера
 	grid := container.NewGridWrap(cell,
 		importsBtn,
 		reportsBtn,
 		chartsBtn,
+		guidebooksBtn,
 	)
 
 	s.window.SetContent(container.NewCenter(grid))
@@ -175,7 +178,7 @@ func (s *Service) showReportsView(ctx context.Context) {
 
 func (s *Service) showChartsView(ctx context.Context) {
 	back := widget.NewButton("◀ Домой", func() { s.showMainMenu(ctx) })
-	chartBtn := widget.NewButton("Интерактивный График Pзаб/Тзаб (Блок 1)", func() {
+	chartBtn := widget.NewButton("2. Интерактивный График Pзаб/Тзаб (Блок 1)", func() {
 		// вставьте сюда тот же код из Run для chartBtn
 		blockOneData, err := s.memBlocksStorage.GetAllBlockOneData()
 		if err != nil {
@@ -186,7 +189,7 @@ func (s *Service) showChartsView(ctx context.Context) {
 			dialog.ShowInformation("Нет данных", "Недостаточно данных для построения графика", s.window)
 			return
 		}
-		htmlPath, err := s.chart.GeneratePressureTempChart(blockOneData)
+		htmlPath, err := s.chart.GenerateTableOneChart(blockOneData)
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("ошибка генерации HTML графика: %w", err), s.window)
 			return
@@ -212,13 +215,169 @@ func (s *Service) showChartsView(ctx context.Context) {
 		}
 	})
 
+	chartBtn2 := widget.NewButton("1. Интерактивный График Ртр, Рзтр, Рлин (Блок 2)", func() {
+		// 1) Создаём select
+		unitSelect := widget.NewSelect([]string{"kgf/cm2", "bar", "atm"}, func(string) {})
+		unitSelect.PlaceHolder = "Выберите единицу"
+
+		// 2) Упаковываем в контейнер
+		content := container.NewVBox(
+			widget.NewLabel("Единица измерения:"),
+			unitSelect,
+		)
+
+		// 3) Создаём диалог с «OK»/«Отмена»
+		dlg := dialog.NewCustomConfirm(
+			"Выбор единицы",
+			"OK", "Отмена",
+			content,
+			func(ok bool) {
+				if !ok {
+					// Отмена
+					return
+				}
+				unit := unitSelect.Selected
+				if unit == "" {
+					dialog.ShowInformation("Не выбрана единица",
+						"Пожалуйста, выберите единицу измерения",
+						s.window)
+					return
+				}
+
+				// 4) Ваш существующий код построения графика
+				blockTwoData, err := s.memBlocksStorage.GetAllBlockTwoData()
+				if err != nil {
+					dialog.ShowError(fmt.Errorf("не удалось получить данные Блока 2: %w", err), s.window)
+					return
+				}
+				if len(blockTwoData) == 0 {
+					dialog.ShowInformation("Нет данных",
+						"Недостаточно данных для построения графика",
+						s.window)
+					return
+				}
+				htmlPath, err := s.chart.GenerateTableTwoChart(blockTwoData, unit)
+				if err != nil {
+					dialog.ShowError(fmt.Errorf("ошибка генерации HTML графика: %w", err), s.window)
+					return
+				}
+				s.serverMutex.Lock()
+				s.chartHtmlToServe = htmlPath
+				s.serverMutex.Unlock()
+				if err := s.startLocalWebServer(); err != nil {
+					dialog.ShowError(fmt.Errorf("ошибка запуска веб-сервера: %w", err), s.window)
+					return
+				}
+				// Небольшая задержка, чтобы сервер успел подняться
+				time.Sleep(100 * time.Millisecond)
+				s.serverMutex.Lock()
+				port := s.serverPort
+				s.serverMutex.Unlock()
+				if port == "" {
+					dialog.ShowError(fmt.Errorf("не удалось получить порт веб-сервера"), s.window)
+					return
+				}
+				url := fmt.Sprintf("http://127.0.0.1:%s/", port)
+				if err := browser.OpenURL(url); err != nil {
+					dialog.ShowError(fmt.Errorf("не удалось открыть браузер: %w", err), s.window)
+				}
+			},
+			s.window,
+		)
+
+		// Опционально: сразу задаём размер диалога, чтобы Select не обрезался
+		dlg.Resize(fyne.NewSize(240, 120))
+		dlg.Show()
+	})
+
 	s.window.SetContent(container.NewBorder(back, nil, nil, nil,
 		container.NewVBox(
 			widget.NewLabel("Графики"),
 			widget.NewSeparator(),
+			chartBtn2,
 			chartBtn,
 		),
 	))
+}
+
+// --- НОВАЯ ФУНКЦИЯ: Показ экрана управления справочниками ---
+func (s *Service) showGuidebookView(ctx context.Context) {
+	s.zLog.Debugw("Opening Guidebook Management view")
+
+	backBtn := widget.NewButton("◀ Домой", func() { s.showMainMenu(ctx) })
+
+	// Определяем типы справочников, которые можно редактировать
+	guidebookTypes := []string{
+		"Месторождение",         // -> oilfield
+		"Продуктивный горизонт", // -> productive_horizon
+		"Тип прибора",           // -> instrument_type
+		"Вид исследования",      // -> research_type
+	}
+	guidebookTypeSelect := widget.NewSelect(guidebookTypes, nil)
+	guidebookTypeSelect.PlaceHolder = "Выберите тип справочника"
+
+	newValueEntry := widget.NewEntry()
+	newValueEntry.PlaceHolder = "Введите новое значение"
+	newValueEntry.Validator = validation.NewRegexp(`.+`, "Поле не может быть пустым")
+
+	statusLabel := widget.NewLabel("")
+
+	addBtn := widget.NewButton("Добавить значение", func() {
+		statusLabel.SetText("")
+		selectedType := guidebookTypeSelect.Selected
+		newValue := strings.TrimSpace(newValueEntry.Text)
+
+		if selectedType == "" || newValue == "" {
+			dialog.ShowInformation("Ошибка", "Выберите тип справочника и введите непустое значение.", s.window)
+			return
+		}
+
+		err := newValueEntry.Validate()
+		if err != nil {
+			statusLabel.SetText("Ошибка валидации: " + err.Error())
+			return
+		}
+
+		err = s.addGuidebookEntry(ctx, selectedType, newValue)
+		if err != nil {
+			// Обрабатываем возможную ошибку уникальности (если уберем ON CONFLICT) или другую ошибку БД
+			// В случае ON CONFLICT DO NOTHING ошибки не будет при дубликате
+			s.zLog.Errorw("Failed to add guidebook entry", "type", selectedType, "value", newValue, "error", err)
+			dialog.ShowError(fmt.Errorf("Не удалось добавить значение: %w", err), s.window)
+			statusLabel.SetText("Ошибка при добавлении.")
+		} else {
+			s.zLog.Infow("Successfully added guidebook entry", "type", selectedType, "value", newValue)
+			statusLabel.SetText(fmt.Sprintf("Значение '%s' добавлено в '%s'.", newValue, selectedType))
+			newValueEntry.SetText("")
+		}
+	})
+
+	content := container.NewVBox(
+		widget.NewLabel("Управление справочниками"),
+		widget.NewSeparator(),
+		guidebookTypeSelect,
+		newValueEntry,
+		addBtn,
+		statusLabel,
+	)
+
+	s.window.SetContent(container.NewBorder(backBtn, nil, nil, nil, content))
+}
+
+// --- НОВАЯ ФУНКЦИЯ-ОБЕРТКА для вызова правильного метода БД ---
+func (s *Service) addGuidebookEntry(ctx context.Context, guidebookType string, name string) error {
+	switch guidebookType {
+	case "Месторождение":
+		return s.db.SaveOilFields(ctx, []models.OilField{{Name: name}})
+	case "Продуктивный горизонт":
+		return s.db.SaveProductiveHorizons(ctx, []models.ProductiveHorizon{{Name: name}})
+	case "Тип прибора":
+		return s.db.SaveInstrumentTypes(ctx, []models.InstrumentType{{Name: name}})
+	case "Вид исследования":
+		return s.db.SaveResearchTypes(ctx, []models.ResearchType{{Name: name}})
+	default:
+		return errors.New("неизвестный тип справочника")
+	}
 }
 
 func (s *Service) Run(ctx context.Context) error {

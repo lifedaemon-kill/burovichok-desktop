@@ -4,13 +4,15 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/cockroachdb/errors" 
+
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/postgres"
 )
 
-// Service реализует Service через Postgres хранилище
+// service реализует Service через Postgres хранилище
 type Service struct {
 	pg  *postgres.Postgres
 	log logger.Logger
@@ -45,6 +47,20 @@ func (d *Service) SaveReport(ctx context.Context, tableFive models.TableFive) (i
 
 	return id, nil
 }
+
+
+func (s *Service) AddOilFieldEntry(ctx context.Context, name string) error {
+	entry := models.OilField{Name: name}
+	entries := []models.OilField{entry}
+	err := s.pg.AddOilField(ctx, entries)
+	if err != nil {
+		s.log.Errorw("Database service failed to add oilfield entry", "name", name, "error", err)
+		return errors.Wrap(err, "database: AddOilFieldEntry failed") 
+	}
+	s.log.Debugw("Database service added oilfield entry", "name", name)
+	return nil
+}
+
 
 // GetAllInstrumentTypes возвращает все InstrumentType
 func (d *Service) GetAllInstrumentTypes(ctx context.Context) ([]models.InstrumentType, error) {
