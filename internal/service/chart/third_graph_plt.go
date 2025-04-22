@@ -97,9 +97,9 @@ func (s *chartService) GenerateTableThreeChart(data []models.TableThree) (string
 			charts.WithLabelOpts(opts.Label{Show: opts.Bool(false)}),
 		)
 
-	f, err := os.Create(chartHTMLFilenameThree)
+	f, err := os.Create(HTMLFileNameThree)
 	if err != nil {
-		return "", fmt.Errorf("не удалось создать файл %s: %w", chartHTMLFilenameThree, err)
+		return "", fmt.Errorf("не удалось создать файл %s: %w", HTMLFileNameThree, err)
 	}
 	defer f.Close()
 
@@ -108,5 +108,5 @@ func (s *chartService) GenerateTableThreeChart(data []models.TableThree) (string
 		return "", fmt.Errorf("не удалось отрендерить график в файл: %w", err)
 	}
 
-	return chartHTMLFilenameThree, nil
+	return HTMLFileNameThree, nil
 }
