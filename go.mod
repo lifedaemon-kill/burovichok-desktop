@@ -14,6 +14,8 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/pressly/goose/v3 v3.24.2
+	github.com/samber/lo v1.49.1
+	github.com/stretchr/testify v1.10.0
 	github.com/thedatashed/xlsxreader v1.2.8
 	go.uber.org/zap v1.27.0
 )
@@ -54,11 +56,9 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/rymdport/portal v0.4.1 // indirect
-	github.com/samber/lo v1.49.1 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/yuin/goldmark v1.7.8 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/image v0.24.0 // indirect

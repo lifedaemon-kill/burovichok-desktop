@@ -215,10 +215,86 @@ func (s *Service) showChartsView(ctx context.Context) {
 		}
 	})
 
+	chartBtn2 := widget.NewButton("Интерактивный График Pзаб/Тзаб (Блок 2)", func() {
+		// 1) Создаём select
+		unitSelect := widget.NewSelect([]string{"kgf/cm2", "bar", "atm"}, func(string) {})
+		unitSelect.PlaceHolder = "Выберите единицу"
+
+		// 2) Упаковываем в контейнер
+		content := container.NewVBox(
+			widget.NewLabel("Единица измерения:"),
+			unitSelect,
+		)
+
+		// 3) Создаём диалог с «OK»/«Отмена»
+		dlg := dialog.NewCustomConfirm(
+			"Выбор единицы",
+			"OK", "Отмена",
+			content,
+			func(ok bool) {
+				if !ok {
+					// Отмена
+					return
+				}
+				unit := unitSelect.Selected
+				if unit == "" {
+					dialog.ShowInformation("Не выбрана единица",
+						"Пожалуйста, выберите единицу измерения",
+						s.window)
+					return
+				}
+
+				// 4) Ваш существующий код построения графика
+				blockTwoData, err := s.memBlocksStorage.GetAllBlockTwoData()
+				if err != nil {
+					dialog.ShowError(fmt.Errorf("не удалось получить данные Блока 2: %w", err), s.window)
+					return
+				}
+				if len(blockTwoData) == 0 {
+					dialog.ShowInformation("Нет данных",
+						"Недостаточно данных для построения графика",
+						s.window)
+					return
+				}
+				htmlPath, err := s.chart.GenerateTableTwoChart(blockTwoData, unit)
+				if err != nil {
+					dialog.ShowError(fmt.Errorf("ошибка генерации HTML графика: %w", err), s.window)
+					return
+				}
+				s.serverMutex.Lock()
+				s.chartHtmlToServe = htmlPath
+				s.serverMutex.Unlock()
+				if err := s.startLocalWebServer(); err != nil {
+					dialog.ShowError(fmt.Errorf("ошибка запуска веб-сервера: %w", err), s.window)
+					return
+				}
+				// Небольшая задержка, чтобы сервер успел подняться
+				time.Sleep(100 * time.Millisecond)
+				s.serverMutex.Lock()
+				port := s.serverPort
+				s.serverMutex.Unlock()
+				if port == "" {
+					dialog.ShowError(fmt.Errorf("не удалось получить порт веб-сервера"), s.window)
+					return
+				}
+				url := fmt.Sprintf("http://127.0.0.1:%s/", port)
+				if err := browser.OpenURL(url); err != nil {
+					dialog.ShowError(fmt.Errorf("не удалось открыть браузер: %w", err), s.window)
+				}
+			},
+			s.window,
+		)
+
+		// Опционально: сразу задаём размер диалога, чтобы Select не обрезался
+		dlg.Resize(fyne.NewSize(240, 120))
+		dlg.Show()
+	})
+
 	s.window.SetContent(container.NewBorder(back, nil, nil, nil,
 		container.NewVBox(
 			widget.NewLabel("Графики"),
 			widget.NewSeparator(),
+			chartBtn2,
 			chartBtn,
 		),
 	))
