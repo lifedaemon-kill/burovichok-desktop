@@ -178,8 +178,8 @@ func (s *Service) showReportsView(ctx context.Context) {
 
 func (s *Service) showChartsView(ctx context.Context) {
 	back := widget.NewButton("◀ Домой", func() { s.showMainMenu(ctx) })
-	chartBtn := widget.NewButton("2. Интерактивный График Pзаб/Тзаб (Блок 1)", func() {
-		// вставьте сюда тот же код из Run для chartBtn
+	chartBtn1 := widget.NewButton("2. Интерактивный График Pзаб/Тзаб (Блок 1)", func() {
+		// вставьте сюда тот же код из Run для chartBtn1
 		blockOneData, err := s.memBlocksStorage.GetAllBlockOneData()
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("не удалось получить данные Блока 1: %w", err), s.window)
@@ -290,12 +290,49 @@ func (s *Service) showChartsView(ctx context.Context) {
 		dlg.Show()
 	})
 
+	chartBtn3 := widget.NewButton("3 Интерактивный график Дебитов (Блок 3)", func() {
+		blockThreeData, err := s.memBlocksStorage.GetAllBlockThreeData()
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("не удалось получить данные Блока 3: %w", err), s.window)
+			return
+		}
+		if len(blockThreeData) == 0 {
+			dialog.ShowInformation("Нет данных", "Недостаточно данных для построения графика", s.window)
+			return
+		}
+		htmlPath, err := s.chart.GenerateTableThreeChart(blockThreeData)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("ошибка генерации HTML графика: %w", err), s.window)
+			return
+		}
+		s.serverMutex.Lock()
+		s.chartHtmlToServe = htmlPath
+		s.serverMutex.Unlock()
+		if err := s.startLocalWebServer(); err != nil {
+			dialog.ShowError(fmt.Errorf("ошибка запуска веб-сервера для графика: %w", err), s.window)
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+		s.serverMutex.Lock()
+		port := s.serverPort
+		s.serverMutex.Unlock()
+		if port == "" {
+			dialog.ShowError(fmt.Errorf("не удалось получить порт веб-сервера"), s.window)
+			return
+		}
+		url := fmt.Sprintf("http://127.0.0.1:%s/", port)
+		if err := browser.OpenURL(url); err != nil {
+			dialog.ShowError(fmt.Errorf("не удалось открыть браузер: %w", err), s.window)
+		}
+	})
+
 	s.window.SetContent(container.NewBorder(back, nil, nil, nil,
 		container.NewVBox(
 			widget.NewLabel("Графики"),
 			widget.NewSeparator(),
 			chartBtn2,
-			chartBtn,
+			chartBtn1,
+			chartBtn3,
 		),
 	))
 }
