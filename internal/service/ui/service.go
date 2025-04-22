@@ -178,7 +178,7 @@ func (s *Service) showReportsView(ctx context.Context) {
 
 func (s *Service) showChartsView(ctx context.Context) {
 	back := widget.NewButton("◀ Домой", func() { s.showMainMenu(ctx) })
-	chartBtn := widget.NewButton("Интерактивный График Pзаб/Тзаб (Блок 1)", func() {
+	chartBtn := widget.NewButton("2. Интерактивный График Pзаб/Тзаб (Блок 1)", func() {
 		// вставьте сюда тот же код из Run для chartBtn
 		blockOneData, err := s.memBlocksStorage.GetAllBlockOneData()
 		if err != nil {
@@ -215,7 +215,7 @@ func (s *Service) showChartsView(ctx context.Context) {
 		}
 	})
 
-	chartBtn2 := widget.NewButton("Интерактивный График Pзаб/Тзаб (Блок 2)", func() {
+	chartBtn2 := widget.NewButton("1. Интерактивный График Ртр, Рзтр, Рлин (Блок 2)", func() {
 		// 1) Создаём select
 		unitSelect := widget.NewSelect([]string{"kgf/cm2", "bar", "atm"}, func(string) {})
 		unitSelect.PlaceHolder = "Выберите единицу"
