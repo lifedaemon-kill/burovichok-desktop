@@ -32,3 +32,4 @@ build
 *.html
 
 burovichok_chart.html
+config/config.yaml
