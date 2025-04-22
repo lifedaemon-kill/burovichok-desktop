@@ -15,6 +15,3 @@ go build -o burovichok.exe cmd/main.go
 ```bash
 docker-compose -f build/docker-compose/docker-compose.yaml up
 ```
-Но сначала добавить пароль от бд в `config/config.yaml` между : и @. 
-
-B в build/docker-compose/docker-compose.yaml
