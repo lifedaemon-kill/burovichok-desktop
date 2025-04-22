@@ -144,7 +144,6 @@ func (s *Service) showMainMenu(ctx context.Context) {
 	chartsBtn := widget.NewButton("графики", func() { s.showChartsView(ctx) })
 	guidebooksBtn := widget.NewButton("Справочники", func() { s.showGuidebookView(ctx) })
 
-
 	// NewGridWrap принимает размер ячейки — и «упаковывает» каждый элемент в box этого размера
 	grid := container.NewGridWrap(cell,
 		importsBtn,
@@ -225,7 +224,6 @@ func (s *Service) showChartsView(ctx context.Context) {
 	))
 }
 
-
 // --- НОВАЯ ФУНКЦИЯ: Показ экрана управления справочниками ---
 func (s *Service) showGuidebookView(ctx context.Context) {
 	s.zLog.Debugw("Opening Guidebook Management view")
@@ -234,10 +232,10 @@ func (s *Service) showGuidebookView(ctx context.Context) {
 
 	// Определяем типы справочников, которые можно редактировать
 	guidebookTypes := []string{
-		"Месторождение",        // -> oilfield
+		"Месторождение",         // -> oilfield
 		"Продуктивный горизонт", // -> productive_horizon
-		"Тип прибора",          // -> instrument_type
-		"Вид исследования",     // -> research_type
+		"Тип прибора",           // -> instrument_type
+		"Вид исследования",      // -> research_type
 	}
 	guidebookTypeSelect := widget.NewSelect(guidebookTypes, nil)
 	guidebookTypeSelect.PlaceHolder = "Выберите тип справочника"
@@ -246,12 +244,12 @@ func (s *Service) showGuidebookView(ctx context.Context) {
 	newValueEntry.PlaceHolder = "Введите новое значение"
 	newValueEntry.Validator = validation.NewRegexp(`.+`, "Поле не может быть пустым")
 
-	statusLabel := widget.NewLabel("") 
+	statusLabel := widget.NewLabel("")
 
 	addBtn := widget.NewButton("Добавить значение", func() {
-		statusLabel.SetText("") 
+		statusLabel.SetText("")
 		selectedType := guidebookTypeSelect.Selected
-		newValue := strings.TrimSpace(newValueEntry.Text) 
+		newValue := strings.TrimSpace(newValueEntry.Text)
 
 		if selectedType == "" || newValue == "" {
 			dialog.ShowInformation("Ошибка", "Выберите тип справочника и введите непустое значение.", s.window)
@@ -274,7 +272,7 @@ func (s *Service) showGuidebookView(ctx context.Context) {
 		} else {
 			s.zLog.Infow("Successfully added guidebook entry", "type", selectedType, "value", newValue)
 			statusLabel.SetText(fmt.Sprintf("Значение '%s' добавлено в '%s'.", newValue, selectedType))
-			newValueEntry.SetText("") 
+			newValueEntry.SetText("")
 		}
 	})
 
@@ -284,7 +282,7 @@ func (s *Service) showGuidebookView(ctx context.Context) {
 		guidebookTypeSelect,
 		newValueEntry,
 		addBtn,
-		statusLabel, 
+		statusLabel,
 	)
 
 	s.window.SetContent(container.NewBorder(backBtn, nil, nil, nil, content))
@@ -294,18 +292,17 @@ func (s *Service) showGuidebookView(ctx context.Context) {
 func (s *Service) addGuidebookEntry(ctx context.Context, guidebookType string, name string) error {
 	switch guidebookType {
 	case "Месторождение":
-		return s.db.AddOilFieldEntry(ctx, name)
+		return s.db.SaveOilFields(ctx, []models.OilField{{Name: name}})
 	case "Продуктивный горизонт":
-		return s.db.AddProductiveHorizonEntry(ctx, name)
+		return s.db.SaveProductiveHorizons(ctx, []models.ProductiveHorizon{{Name: name}})
 	case "Тип прибора":
-		return s.db.AddInstrumentTypeEntry(ctx, name)
+		return s.db.SaveInstrumentTypes(ctx, []models.InstrumentType{{Name: name}})
 	case "Вид исследования":
-		return s.db.AddResearchTypeEntry(ctx, name)
+		return s.db.SaveResearchTypes(ctx, []models.ResearchType{{Name: name}})
 	default:
-		return errors.New("неизвестный тип справочника") // Или fmt.Errorf
+		return errors.New("неизвестный тип справочника")
 	}
 }
-
 
 func (s *Service) Run(ctx context.Context) error {
 	s.window.SetOnClosed(func() {

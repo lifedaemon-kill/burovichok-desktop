@@ -50,42 +50,14 @@ func (d *Service) SaveReport(ctx context.Context, tableFive models.TableFive) (i
 
 
 func (s *Service) AddOilFieldEntry(ctx context.Context, name string) error {
-	err := s.pg.AddOilFieldEntry(ctx, name) 
+	entry := models.OilField{Name: name}
+	entries := []models.OilField{entry}
+	err := s.pg.AddOilField(ctx, entries)
 	if err != nil {
 		s.log.Errorw("Database service failed to add oilfield entry", "name", name, "error", err)
-		return errors.Wrap(err, "database: AddOilFieldEntry failed") // Оборачиваем ошибку
+		return errors.Wrap(err, "database: AddOilFieldEntry failed") 
 	}
 	s.log.Debugw("Database service added oilfield entry", "name", name)
-	return nil
-}
-
-func (s *Service) AddProductiveHorizonEntry(ctx context.Context, name string) error {
-	err := s.pg.AddProductiveHorizonEntry(ctx, name) 
-	if err != nil {
-		s.log.Errorw("Database service failed to add productive horizon entry", "name", name, "error", err)
-		return errors.Wrap(err, "database: AddProductiveHorizonEntry failed")
-	}
-	s.log.Debugw("Database service added productive horizon entry", "name", name)
-	return nil
-}
-
-func (s *Service) AddInstrumentTypeEntry(ctx context.Context, name string) error {
-	err := s.pg.AddInstrumentTypeEntry(ctx, name) 
-	if err != nil {
-		s.log.Errorw("Database service failed to add instrument type entry", "name", name, "error", err)
-		return errors.Wrap(err, "database: AddInstrumentTypeEntry failed")
-	}
-	s.log.Debugw("Database service added instrument type entry", "name", name)
-	return nil
-}
-
-func (s *Service) AddResearchTypeEntry(ctx context.Context, name string) error {
-	err := s.pg.AddResearchTypeEntry(ctx, name) 
-	if err != nil {
-		s.log.Errorw("Database service failed to add research type entry", "name", name, "error", err)
-		return errors.Wrap(err, "database: AddResearchTypeEntry failed")
-	}
-	s.log.Debugw("Database service added research type entry", "name", name)
 	return nil
 }
 
