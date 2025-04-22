@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/calc"
 	"os"
 	"strconv"
 	"time"
@@ -11,25 +12,18 @@ import (
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
 
-type calcService interface {
-	CalcTableOne(rec models.TableOne, cfg models.OperationConfig) models.TableOne
-	CalcBlockThree(tbl models.TableThree) models.TableThree
-}
-
 type converterService interface {
 	ParseFlexibleTime(raw string) (time.Time, error)
 }
 
 // Service отвечает за логику импорта данных из Excel.
 type Service struct {
-	calc      calcService
 	converter converterService
 }
 
 // NewService создает новый экземпляр сервис импорта.
-func NewService(calc calcService, converter converterService) *Service {
+func NewService(converter converterService) *Service {
 	return &Service{
-		calc:      calc,
 		converter: converter,
 	}
 }
@@ -74,7 +68,7 @@ func (s *Service) ParseBlockOneFile(path string, cfg models.OperationConfig) ([]
 		}
 
 		// 4) автоматический расчёт ВДП
-		rec = s.calc.CalcTableOne(rec, cfg)
+		rec = calc.TableOne(rec, cfg)
 		out = append(out, rec)
 	}
 	return out, nil
@@ -185,7 +179,7 @@ func (s *Service) ParseBlockThreeFile(path string) ([]models.TableThree, error) 
 			GasFlowRate:    flowG,
 		}
 
-		res = s.calc.CalcBlockThree(res)
+		res = calc.TableThree(res)
 
 		out = append(out, res)
 	}

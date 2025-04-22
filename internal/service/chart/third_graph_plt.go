@@ -38,7 +38,7 @@ func (s *chartService) GenerateTableThreeChart(data []models.TableThree) (string
 
 	line.SetGlobalOptions(
 		charts.WithTitleOpts(opts.Title{
-			Title: "",
+			Title: "Дебиты",
 		}),
 		charts.WithTooltipOpts(opts.Tooltip{ // Всплывающие подсказки при наведении
 			Show:      opts.Bool(true),

@@ -3,8 +3,6 @@ package database
 import (
 	"context"
 
-	"github.com/cockroachdb/errors"
-
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/postgres"
@@ -44,18 +42,6 @@ func (d *Service) SaveReport(ctx context.Context, tableFive models.TableFive) (i
 	d.log.Debugw("SaveReport succeeded", "id", id)
 
 	return id, nil
-}
-
-func (s *Service) AddOilFieldEntry(ctx context.Context, name string) error {
-	entry := models.OilField{Name: name}
-	entries := []models.OilField{entry}
-	err := s.pg.AddOilField(ctx, entries)
-	if err != nil {
-		s.log.Errorw("Database service failed to add oilfield entry", "name", name, "error", err)
-		return errors.Wrap(err, "database: AddOilFieldEntry failed")
-	}
-	s.log.Debugw("Database service added oilfield entry", "name", name)
-	return nil
 }
 
 // GetAllInstrumentTypes возвращает все InstrumentType

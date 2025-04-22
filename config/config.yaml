@@ -13,7 +13,7 @@ db:
   max_retries:       10
 
 minio:
-  # endpoint: "minio:9000"     #для буровичка в докере на будущее мб
+  # endpoint: "minioExport:9000"     #для буровичка в докере на будущее мб
   endpoint: "127.0.0.1:9000" #для локального запуска без docker-compose MinIO
   access_key: "admin"       
   secret_key: "zxc123456789"         

@@ -2,8 +2,10 @@ package ui
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/cockroachdb/errors"
+	archiver "github.com/lifedaemon-kill/burovichok-desktop/internal/service/export/archiver"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/export/minioExporter"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -19,8 +21,6 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
-	"github.com/pkg/browser"
-
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
@@ -28,8 +28,6 @@ import (
 	chartService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/chart"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/database"
 	inmemoryStorage "github.com/lifedaemon-kill/burovichok-desktop/internal/storage/inmemory"
-
-	archiverService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/archiver"
 )
 
 type importer interface {
@@ -48,13 +46,12 @@ type Service struct {
 	window           fyne.Window
 	zLog             logger.Logger
 	importer         importer
-	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage
+	memStorage       inmemoryStorage.InMemoryBlocksStorage
 	db               *database.Service
 	converter        converterService
 	chart            chartService.Service
-	calc             *calc.Service
-	archiver         archiverService.Archiver
-
+	archiver         *archiver.Service
+	exporter         *minioExporter.Client
 	serverMutex      sync.Mutex
 	serverListener   net.Listener
 	serverPort       string
@@ -65,7 +62,8 @@ type Service struct {
 }
 
 func NewService(cfg config.UI, zLog logger.Logger, imp importer, converter converterService,
-	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db *database.Service, chart chartService.Service, calcSvc *calc.Service, archiver archiverService.Archiver) *Service {
+	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db *database.Service, chart chartService.Service,
+	archiver *archiver.Service, exporter *minioExporter.Client) *Service {
 
 	a := app.New()
 	win := a.NewWindow(cfg.Name)
@@ -77,18 +75,18 @@ func NewService(cfg config.UI, zLog logger.Logger, imp importer, converter conve
 	progressBr.Hide()
 
 	return &Service{
-		app:              a,
-		window:           win,
-		zLog:             zLog,
-		importer:         imp,
-		memBlocksStorage: memBlocksStorage,
-		db:               db,
-		converter:        converter,
-		chart:            chart,
-		calc:             calcSvc,
-		archiver:         archiver,
-		loadingLabel:     loadingLbl,
-		progressBar:      progressBr,
+		app:          a,
+		window:       win,
+		zLog:         zLog,
+		importer:     imp,
+		memStorage:   memBlocksStorage,
+		db:           db,
+		converter:    converter,
+		chart:        chart,
+		archiver:     archiver,
+		exporter:     exporter,
+		loadingLabel: loadingLbl,
+		progressBar:  progressBr,
 	}
 }
 
@@ -138,287 +136,6 @@ func (s *Service) serveChartHTML(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- Навигация между разделами ---
-
-func (s *Service) showMainMenu(ctx context.Context) {
-	cell := fyne.NewSize(400, 200)
-
-	importsBtn := widget.NewButton("импорты", func() { s.showImportView(ctx) })
-	reportsBtn := widget.NewButton("отчёты", func() { s.showReportsView(ctx) })
-	chartsBtn := widget.NewButton("графики", func() { s.showChartsView(ctx) })
-	guidebooksBtn := widget.NewButton("Справочники", func() { s.showGuidebookView(ctx) })
-
-	// NewGridWrap принимает размер ячейки — и «упаковывает» каждый элемент в box этого размера
-	grid := container.NewGridWrap(cell,
-		importsBtn,
-		reportsBtn,
-		chartsBtn,
-		guidebooksBtn,
-	)
-
-	s.window.SetContent(container.NewCenter(grid))
-}
-
-func (s *Service) showImportView(ctx context.Context) {
-	back := widget.NewButton("◀ Домой", func() { s.showMainMenu(ctx) })
-	content := s.buildImportContent(ctx)
-	s.window.SetContent(container.NewBorder(back, nil, nil, nil, content))
-}
-
-func (s *Service) showReportsView(ctx context.Context) {
-	back := widget.NewButton("◀ Домой", func() { s.showMainMenu(ctx) })
-	// Отчёты: только блок 5
-	reportBtn := widget.NewButton("Заполнить Шапку Отчета (Блок 5)", func() {
-		s.showBlockFiveForm(ctx)
-	})
-	s.window.SetContent(container.NewBorder(back, nil, nil, nil,
-		container.NewVBox(
-			widget.NewLabel("Отчёты"),
-			widget.NewSeparator(),
-			reportBtn,
-		),
-	))
-}
-
-func (s *Service) showChartsView(ctx context.Context) {
-	back := widget.NewButton("◀ Домой", func() { s.showMainMenu(ctx) })
-	chartBtn1 := widget.NewButton("2. Интерактивный График Pзаб/Тзаб (Блок 1)", func() {
-		// вставьте сюда тот же код из Run для chartBtn1
-		blockOneData, err := s.memBlocksStorage.GetAllBlockOneData()
-		if err != nil {
-			dialog.ShowError(fmt.Errorf("не удалось получить данные Блока 1: %w", err), s.window)
-			return
-		}
-		if len(blockOneData) == 0 {
-			dialog.ShowInformation("Нет данных", "Недостаточно данных для построения графика", s.window)
-			return
-		}
-		htmlPath, err := s.chart.GenerateTableOneChart(blockOneData)
-		if err != nil {
-			dialog.ShowError(fmt.Errorf("ошибка генерации HTML графика: %w", err), s.window)
-			return
-		}
-		s.serverMutex.Lock()
-		s.chartHtmlToServe = htmlPath
-		s.serverMutex.Unlock()
-		if err := s.startLocalWebServer(); err != nil {
-			dialog.ShowError(fmt.Errorf("ошибка запуска веб-сервера для графика: %w", err), s.window)
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
-		s.serverMutex.Lock()
-		port := s.serverPort
-		s.serverMutex.Unlock()
-		if port == "" {
-			dialog.ShowError(fmt.Errorf("не удалось получить порт веб-сервера"), s.window)
-			return
-		}
-		url := fmt.Sprintf("http://127.0.0.1:%s/", port)
-		if err := browser.OpenURL(url); err != nil {
-			dialog.ShowError(fmt.Errorf("не удалось открыть браузер: %w", err), s.window)
-		}
-	})
-
-	chartBtn2 := widget.NewButton("1. Интерактивный График Ртр, Рзтр, Рлин (Блок 2)", func() {
-		// 1) Создаём select
-		unitSelect := widget.NewSelect([]string{"kgf/cm2", "bar", "atm"}, func(string) {})
-		unitSelect.PlaceHolder = "Выберите единицу"
-
-		// 2) Упаковываем в контейнер
-		content := container.NewVBox(
-			widget.NewLabel("Единица измерения:"),
-			unitSelect,
-		)
-
-		// 3) Создаём диалог с «OK»/«Отмена»
-		dlg := dialog.NewCustomConfirm(
-			"Выбор единицы",
-			"OK", "Отмена",
-			content,
-			func(ok bool) {
-				if !ok {
-					// Отмена
-					return
-				}
-				unit := unitSelect.Selected
-				if unit == "" {
-					dialog.ShowInformation("Не выбрана единица",
-						"Пожалуйста, выберите единицу измерения",
-						s.window)
-					return
-				}
-
-				// 4) Ваш существующий код построения графика
-				blockTwoData, err := s.memBlocksStorage.GetAllBlockTwoData()
-				if err != nil {
-					dialog.ShowError(fmt.Errorf("не удалось получить данные Блока 2: %w", err), s.window)
-					return
-				}
-				if len(blockTwoData) == 0 {
-					dialog.ShowInformation("Нет данных",
-						"Недостаточно данных для построения графика",
-						s.window)
-					return
-				}
-				htmlPath, err := s.chart.GenerateTableTwoChart(blockTwoData, unit)
-				if err != nil {
-					dialog.ShowError(fmt.Errorf("ошибка генерации HTML графика: %w", err), s.window)
-					return
-				}
-				s.serverMutex.Lock()
-				s.chartHtmlToServe = htmlPath
-				s.serverMutex.Unlock()
-				if err := s.startLocalWebServer(); err != nil {
-					dialog.ShowError(fmt.Errorf("ошибка запуска веб-сервера: %w", err), s.window)
-					return
-				}
-				// Небольшая задержка, чтобы сервер успел подняться
-				time.Sleep(100 * time.Millisecond)
-				s.serverMutex.Lock()
-				port := s.serverPort
-				s.serverMutex.Unlock()
-				if port == "" {
-					dialog.ShowError(fmt.Errorf("не удалось получить порт веб-сервера"), s.window)
-					return
-				}
-				url := fmt.Sprintf("http://127.0.0.1:%s/", port)
-				if err := browser.OpenURL(url); err != nil {
-					dialog.ShowError(fmt.Errorf("не удалось открыть браузер: %w", err), s.window)
-				}
-			},
-			s.window,
-		)
-
-		// Опционально: сразу задаём размер диалога, чтобы Select не обрезался
-		dlg.Resize(fyne.NewSize(240, 120))
-		dlg.Show()
-	})
-
-	chartBtn3 := widget.NewButton("3 Интерактивный график Дебитов (Блок 3)", func() {
-		blockThreeData, err := s.memBlocksStorage.GetAllBlockThreeData()
-		if err != nil {
-			dialog.ShowError(fmt.Errorf("не удалось получить данные Блока 3: %w", err), s.window)
-			return
-		}
-		if len(blockThreeData) == 0 {
-			dialog.ShowInformation("Нет данных", "Недостаточно данных для построения графика", s.window)
-			return
-		}
-		htmlPath, err := s.chart.GenerateTableThreeChart(blockThreeData)
-		if err != nil {
-			dialog.ShowError(fmt.Errorf("ошибка генерации HTML графика: %w", err), s.window)
-			return
-		}
-		s.serverMutex.Lock()
-		s.chartHtmlToServe = htmlPath
-		s.serverMutex.Unlock()
-		if err := s.startLocalWebServer(); err != nil {
-			dialog.ShowError(fmt.Errorf("ошибка запуска веб-сервера для графика: %w", err), s.window)
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
-		s.serverMutex.Lock()
-		port := s.serverPort
-		s.serverMutex.Unlock()
-		if port == "" {
-			dialog.ShowError(fmt.Errorf("не удалось получить порт веб-сервера"), s.window)
-			return
-		}
-		url := fmt.Sprintf("http://127.0.0.1:%s/", port)
-		if err := browser.OpenURL(url); err != nil {
-			dialog.ShowError(fmt.Errorf("не удалось открыть браузер: %w", err), s.window)
-		}
-	})
-
-	s.window.SetContent(container.NewBorder(back, nil, nil, nil,
-		container.NewVBox(
-			widget.NewLabel("Графики"),
-			widget.NewSeparator(),
-			chartBtn2,
-			chartBtn1,
-			chartBtn3,
-		),
-	))
-}
-
-// --- НОВАЯ ФУНКЦИЯ: Показ экрана управления справочниками ---
-func (s *Service) showGuidebookView(ctx context.Context) {
-	s.zLog.Debugw("Opening Guidebook Management view")
-
-	backBtn := widget.NewButton("◀ Домой", func() { s.showMainMenu(ctx) })
-
-	// Определяем типы справочников, которые можно редактировать
-	guidebookTypes := []string{
-		"Месторождение",         // -> oilfield
-		"Продуктивный горизонт", // -> productive_horizon
-		"Тип прибора",           // -> instrument_type
-		"Вид исследования",      // -> research_type
-	}
-	guidebookTypeSelect := widget.NewSelect(guidebookTypes, nil)
-	guidebookTypeSelect.PlaceHolder = "Выберите тип справочника"
-
-	newValueEntry := widget.NewEntry()
-	newValueEntry.PlaceHolder = "Введите новое значение"
-	newValueEntry.Validator = validation.NewRegexp(`.+`, "Поле не может быть пустым")
-
-	statusLabel := widget.NewLabel("")
-
-	addBtn := widget.NewButton("Добавить значение", func() {
-		statusLabel.SetText("")
-		selectedType := guidebookTypeSelect.Selected
-		newValue := strings.TrimSpace(newValueEntry.Text)
-
-		if selectedType == "" || newValue == "" {
-			dialog.ShowInformation("Ошибка", "Выберите тип справочника и введите непустое значение.", s.window)
-			return
-		}
-
-		err := newValueEntry.Validate()
-		if err != nil {
-			statusLabel.SetText("Ошибка валидации: " + err.Error())
-			return
-		}
-
-		err = s.addGuidebookEntry(ctx, selectedType, newValue)
-		if err != nil {
-			// Обрабатываем возможную ошибку уникальности (если уберем ON CONFLICT) или другую ошибку БД
-			// В случае ON CONFLICT DO NOTHING ошибки не будет при дубликате
-			s.zLog.Errorw("Failed to add guidebook entry", "type", selectedType, "value", newValue, "error", err)
-			dialog.ShowError(fmt.Errorf("Не удалось добавить значение: %w", err), s.window)
-			statusLabel.SetText("Ошибка при добавлении.")
-		} else {
-			s.zLog.Infow("Successfully added guidebook entry", "type", selectedType, "value", newValue)
-			statusLabel.SetText(fmt.Sprintf("Значение '%s' добавлено в '%s'.", newValue, selectedType))
-			newValueEntry.SetText("")
-		}
-	})
-
-	content := container.NewVBox(
-		widget.NewLabel("Управление справочниками"),
-		widget.NewSeparator(),
-		guidebookTypeSelect,
-		newValueEntry,
-		addBtn,
-		statusLabel,
-	)
-
-	s.window.SetContent(container.NewBorder(backBtn, nil, nil, nil, content))
-}
-
-// --- НОВАЯ ФУНКЦИЯ-ОБЕРТКА для вызова правильного метода БД ---
-func (s *Service) addGuidebookEntry(ctx context.Context, guidebookType string, name string) error {
-	switch guidebookType {
-	case "Месторождение":
-		return s.db.SaveOilFields(ctx, []models.OilField{{Name: name}})
-	case "Продуктивный горизонт":
-		return s.db.SaveProductiveHorizons(ctx, []models.ProductiveHorizon{{Name: name}})
-	case "Тип прибора":
-		return s.db.SaveInstrumentTypes(ctx, []models.InstrumentType{{Name: name}})
-	case "Вид исследования":
-		return s.db.SaveResearchTypes(ctx, []models.ResearchType{{Name: name}})
-	default:
-		return errors.New("неизвестный тип справочника")
-	}
-}
 
 func (s *Service) Run(ctx context.Context) error {
 	s.window.SetOnClosed(func() {
@@ -474,7 +191,7 @@ func (s *Service) buildImportContent(ctx context.Context) fyne.CanvasObject {
 		if typ == "TableOne" {
 			showTableOneForm(s, path)
 		} else {
-			s.doGenericImport(ctx, path, typ)
+			s.doGenericImport(path, typ)
 		}
 	})
 
@@ -484,7 +201,7 @@ func (s *Service) buildImportContent(ctx context.Context) fyne.CanvasObject {
 			if !ok {
 				return
 			}
-			if err := s.memBlocksStorage.ClearAll(); err != nil {
+			if err := s.memStorage.ClearAll(); err != nil {
 				dialog.ShowError(fmt.Errorf("ошибка очистки: %w", err), s.window)
 				return
 			}
@@ -494,36 +211,39 @@ func (s *Service) buildImportContent(ctx context.Context) fyne.CanvasObject {
 
 	archiveStatusLabel := widget.NewLabel("") // Статус для архивации
 	archiveStatusLabel.Hide()                 // Скрыть по умолчанию
+	/*
+		archiveBtn := widget.NewButton("Архивировать и выгрузить в MinIO", func() {
+			archiveStatusLabel.Hide()                     // Скрыть старый статус
+			s.showLoadingIndicator("Архивация данных...") // Показываем общий индикатор
 
-	archiveBtn := widget.NewButton("Архивировать и выгрузить в MinIO", func() {
-		archiveStatusLabel.Hide()                     // Скрыть старый статус
-		s.showLoadingIndicator("Архивация данных...") // Показываем общий индикатор
+			// Запускаем в горутине, чтобы не блокировать UI
+			go func() {
+				// !!! Нужно получить осмысленное имя для архива !!!
+				// Например, попробуем взять имя месторождения из блока 5 (если он есть в memStorage)
+				// baseName := s.getBaseNameForArchive(ctx)
+				baseName := "manual_export" // Пока заглушка
 
-		// Запускаем в горутине, чтобы не блокировать UI
-		go func() {
-			// !!! Нужно получить осмысленное имя для архива !!!
-			// Например, попробуем взять имя месторождения из блока 5 (если он есть в memStorage)
-			// baseName := s.getBaseNameForArchive(ctx)
-			baseName := "manual_export" // Пока заглушка
+				//TODO добавить архивирование
+			//	objectName, err := s.archiver.ArchiveAndUpload(context.Background(), baseName) // Используем новый контекст
 
-			objectName, err := s.archiver.ArchiveAndUpload(context.Background(), baseName) // Используем новый контекст
+				// Важно: Обновление UI из горутины нужно делать через главный поток Fyne
+				// Но для простоты пока делаем так, Hide/Show обычно работают нормально
+				s.hideLoadingIndicator(err) // Скрываем индикатор, показываем ошибку если была
 
-			// Важно: Обновление UI из горутины нужно делать через главный поток Fyne
-			// Но для простоты пока делаем так, Hide/Show обычно работают нормально
-			s.hideLoadingIndicator(err) // Скрываем индикатор, показываем ошибку если была
+				if err == nil {
+					archiveStatusLabel.SetText(fmt.Sprintf("Архив '%s' успешно выгружен.", objectName))
+					archiveStatusLabel.Show()
+					// Очищаем статус через некоторое время (опционально)
+					// time.AfterFunc(5*time.Second, func() { archiveStatusLabel.Hide() })
+				} else {
+					// Ошибка уже показана через hideLoadingIndicator -> dialog.ShowError
+					archiveStatusLabel.SetText("Ошибка архивации.")
+					archiveStatusLabel.Show()
+				}
+			}() // конец горутины
+		})
 
-			if err == nil {
-				archiveStatusLabel.SetText(fmt.Sprintf("Архив '%s' успешно выгружен.", objectName))
-				archiveStatusLabel.Show()
-				// Очищаем статус через некоторое время (опционально)
-				// time.AfterFunc(5*time.Second, func() { archiveStatusLabel.Hide() })
-			} else {
-				// Ошибка уже показана через hideLoadingIndicator -> dialog.ShowError
-				archiveStatusLabel.SetText("Ошибка архивации.")
-				archiveStatusLabel.Show()
-			}
-		}() // конец горутины
-	})
+	*/
 
 	// Собираем всё в VBox
 	return container.NewVBox(
@@ -537,14 +257,14 @@ func (s *Service) buildImportContent(ctx context.Context) fyne.CanvasObject {
 		importBtn,
 		clearBtn,
 		widget.NewSeparator(),
-		archiveBtn,
+		//	archiveBtn,
 		archiveStatusLabel,
 		s.loadingLabel,
 		s.progressBar,
 	)
 }
 
-// --- Далее ваши существующие формы и методы ---
+// --- Далее ваши методы ---
 
 type ratioLayout struct{ ratio float32 }
 
@@ -814,7 +534,6 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 
 			var report models.TableFive
 			var convErrs []string
-			var err error
 
 			report.FieldName = fieldNameSelect.Selected
 			report.Horizon = horizonSelect.Selected
@@ -865,15 +584,18 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 			}
 
 			// Расчет и сохранение остаётся без изменений
-			tFour, err := s.memBlocksStorage.GetAllBlockFourData()
+			tFour, err := s.memStorage.GetTableFourData()
 			if len(tFour) == 0 {
 				s.zLog.Errorw("table four is len 0", "error", err)
 				dialog.ShowError(fmt.Errorf("вы не импортировали блок 4 для отчетов"), s.window)
 				return
 			}
 
-			report = s.calc.CalcBlockFive(ctx, report, tFour)
-
+			//Вычисляем
+			report = calc.TableFive(report, tFour)
+			//Кладем в память
+			_ = s.memStorage.PutTableFiveData(report)
+			//Кладем в бд
 			id, err := s.db.SaveReport(ctx, report)
 			if err != nil {
 				s.zLog.Errorw("Failed to save report (Block 5)", "error", err)
@@ -922,7 +644,7 @@ func (s *Service) doTableOneImport(path string, cfg models.OperationConfig) {
 		s.zLog.Errorw("TableOne import failed", "error", err, "duration", time.Since(start))
 		return
 	}
-	if err2 := s.memBlocksStorage.AddBlockOneData(data); err2 != nil {
+	if err2 := s.memStorage.PutTableOneData(data); err2 != nil {
 		finalErr = fmt.Errorf("ошибка сохранения: %w", err2)
 		s.zLog.Errorw("TableOne save failed", "error", err2)
 		return
@@ -942,7 +664,7 @@ func (s *Service) doTableOneImport(path string, cfg models.OperationConfig) {
 }
 
 // doGenericImport обрабатывает TableTwo/TableThree.
-func (s *Service) doGenericImport(ctx context.Context, path, typ string) {
+func (s *Service) doGenericImport(path, typ string) {
 	fileName := filepath.Base(path)
 	s.showLoadingIndicator(fileName)
 
@@ -962,14 +684,14 @@ func (s *Service) doGenericImport(ctx context.Context, path, typ string) {
 			data, finalErr = s.importer.ParseBlockTwoFile(path)
 			count = len(data)
 			if finalErr == nil {
-				finalErr = s.memBlocksStorage.AddBlockTwoData(data)
+				finalErr = s.memStorage.PutTableTwoData(data)
 			}
 		case "TableThree":
 			var data []models.TableThree
 			data, finalErr = s.importer.ParseBlockThreeFile(path)
 			count = len(data)
 			if finalErr == nil {
-				finalErr = s.memBlocksStorage.AddBlockThreeData(data)
+				finalErr = s.memStorage.PutTableThreeData(data)
 			}
 		case "TableFour":
 			var data []models.TableFour
@@ -978,8 +700,8 @@ func (s *Service) doGenericImport(ctx context.Context, path, typ string) {
 			if finalErr == nil {
 				//	id, dbErr := s.db.SaveBlockFour(ctx, data)
 				//	if dbErr == nil {
-				//		s.memBlocksStorage.SetResearchID(id)
-				finalErr = s.memBlocksStorage.AddBlockFourData(data)
+				//		s.memStorage.SetResearchID(id)
+				finalErr = s.memStorage.PutTableFourData(data)
 				//	} else {
 				//		finalErr = dbErr
 				//	}
@@ -1006,4 +728,19 @@ func (s *Service) doGenericImport(ctx context.Context, path, typ string) {
 			)
 		}()
 	}()
+}
+
+func (s *Service) addGuidebookEntry(ctx context.Context, guidebookType string, name string) error {
+	switch guidebookType {
+	case "Месторождение":
+		return s.db.SaveOilFields(ctx, []models.OilField{{Name: name}})
+	case "Продуктивный горизонт":
+		return s.db.SaveProductiveHorizons(ctx, []models.ProductiveHorizon{{Name: name}})
+	case "Тип прибора":
+		return s.db.SaveInstrumentTypes(ctx, []models.InstrumentType{{Name: name}})
+	case "Вид исследования":
+		return s.db.SaveResearchTypes(ctx, []models.ResearchType{{Name: name}})
+	default:
+		return errors.New("неизвестный тип справочника")
+	}
 }

@@ -4,8 +4,6 @@ package inmemory
 import (
 	"sync"
 
-	"github.com/google/uuid"
-
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
 
@@ -15,16 +13,18 @@ import (
 // InMemoryBlocksStorage определяет интерфейс для взаимодействия с хранилищем данных.
 type InMemoryBlocksStorage interface {
 	// Методы для добавления данных (принимают срезы, как возвращает парсер)
-	AddBlockOneData(data []models.TableOne) error
-	AddBlockTwoData(data []models.TableTwo) error
-	AddBlockThreeData(data []models.TableThree) error
-	AddBlockFourData(data []models.TableFour) error
+	PutTableOneData(data []models.TableOne) error
+	PutTableTwoData(data []models.TableTwo) error
+	PutTableThreeData(data []models.TableThree) error
+	PutTableFourData(data []models.TableFour) error
+	PutTableFiveData(data models.TableFive) error
 
 	// Методы для получения всех данных (возвращают копии для безопасности)
-	GetAllBlockOneData() ([]models.TableOne, error)
-	GetAllBlockTwoData() ([]models.TableTwo, error)
-	GetAllBlockThreeData() ([]models.TableThree, error)
-	GetAllBlockFourData() ([]models.TableFour, error)
+	GetTableOneData() ([]models.TableOne, error)
+	GetTableTwoData() ([]models.TableTwo, error)
+	GetTableThreeData() ([]models.TableThree, error)
+	GetTableFourData() ([]models.TableFour, error)
+	GetTableFiveData() (models.TableFive, error)
 
 	// Метод для очистки всего хранилища
 	ClearAll() error
@@ -33,89 +33,107 @@ type InMemoryBlocksStorage interface {
 	CountBlockOne() int
 	CountBlockTwo() int
 	CountBlockThree() int
-
-	SetResearchID(researchID uuid.UUID)
-	GetResearchID() uuid.UUID
 }
 
 // Storage реализует интерфейс storage.InMemoryBlocksStorage, храня данные в памяти.
 type Storage struct {
-	mu             sync.RWMutex // Mutex для безопасного доступа к данным
-	blockOneData   []models.TableOne
-	blockTwoData   []models.TableTwo
-	blockThreeData []models.TableThree
-	inclinometry   []models.TableFour
-	researchID     uuid.UUID
+	mu         sync.RWMutex // Mutex для безопасного доступа к данным
+	blockOne   []models.TableOne
+	blockTwo   []models.TableTwo
+	blockThree []models.TableThree
+	blockFour  []models.TableFour
+	blockFive  models.TableFive
 }
 
 // NewInMemoryBlocksStorage создает новый экземпляр Storage.
 func NewInMemoryBlocksStorage() InMemoryBlocksStorage { // Возвращаем интерфейс!
 	return &Storage{
-		blockOneData:   make([]models.TableOne, 0),
-		blockTwoData:   make([]models.TableTwo, 0),
-		blockThreeData: make([]models.TableThree, 0),
-		inclinometry:   make([]models.TableFour, 0),
+		blockOne:   make([]models.TableOne, 0),
+		blockTwo:   make([]models.TableTwo, 0),
+		blockThree: make([]models.TableThree, 0),
+		blockFour:  make([]models.TableFour, 0),
 	}
 }
 
-// AddBlockOneData добавляет данные TableOne в хранилище.
-func (s *Storage) AddBlockOneData(data []models.TableOne) error {
+// PutTableOneData добавляет данные TableOne в хранилище.
+func (s *Storage) PutTableOneData(data []models.TableOne) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.blockOneData = append(s.blockOneData, data...)
+	s.blockOne = append(s.blockOne, data...)
 	return nil // В in-memory обычно нет ошибок добавления, кроме нехватки памяти (panic)
 }
 
-// AddBlockTwoData добавляет данные TableTwo в хранилище.
-func (s *Storage) AddBlockTwoData(data []models.TableTwo) error {
+// PutTableTwoData добавляет данные TableTwo в хранилище.
+func (s *Storage) PutTableTwoData(data []models.TableTwo) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.blockTwoData = append(s.blockTwoData, data...)
+	s.blockTwo = append(s.blockTwo, data...)
 	return nil
 }
 
-// AddBlockThreeData добавляет данные TableThree в хранилище.
-func (s *Storage) AddBlockThreeData(data []models.TableThree) error {
+// PutTableThreeData добавляет данные TableThree в хранилище.
+func (s *Storage) PutTableThreeData(data []models.TableThree) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.blockThreeData = append(s.blockThreeData, data...)
+	s.blockThree = append(s.blockThree, data...)
+	return nil
+}
+
+func (s *Storage) PutTableFourData(data []models.TableFour) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.blockFour = append(s.blockFour, data...)
+	return nil // В in-memory обычно нет ошибок добавления, кроме нехватки памяти (panic)
+}
+
+func (s *Storage) PutTableFiveData(data models.TableFive) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.blockFive = data
 	return nil
 }
 
 // GetAllBlockOneData возвращает копию всех данных TableOne.
-func (s *Storage) GetAllBlockOneData() ([]models.TableOne, error) {
+func (s *Storage) GetTableOneData() ([]models.TableOne, error) {
 	s.mu.RLock() // Блокировка на чтение
 	defer s.mu.RUnlock()
 	// Возвращаем копию, чтобы внешние изменения не влияли на хранилище
-	dataCopy := make([]models.TableOne, len(s.blockOneData))
-	copy(dataCopy, s.blockOneData)
+	dataCopy := make([]models.TableOne, len(s.blockOne))
+	copy(dataCopy, s.blockOne)
 	return dataCopy, nil
 }
 
 // GetAllBlockTwoData возвращает копию всех данных TableTwo.
-func (s *Storage) GetAllBlockTwoData() ([]models.TableTwo, error) {
+func (s *Storage) GetTableTwoData() ([]models.TableTwo, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	dataCopy := make([]models.TableTwo, len(s.blockTwoData))
-	copy(dataCopy, s.blockTwoData)
+	dataCopy := make([]models.TableTwo, len(s.blockTwo))
+	copy(dataCopy, s.blockTwo)
 	return dataCopy, nil
 }
 
 // GetAllBlockThreeData возвращает копию всех данных TableThree.
-func (s *Storage) GetAllBlockThreeData() ([]models.TableThree, error) {
+func (s *Storage) GetTableThreeData() ([]models.TableThree, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	dataCopy := make([]models.TableThree, len(s.blockThreeData))
-	copy(dataCopy, s.blockThreeData)
+	dataCopy := make([]models.TableThree, len(s.blockThree))
+	copy(dataCopy, s.blockThree)
 	return dataCopy, nil
 }
 
 // GetAllBlockFourData возвращает копию всех данных TableFour
-func (s *Storage) GetAllBlockFourData() ([]models.TableFour, error) {
+func (s *Storage) GetTableFourData() ([]models.TableFour, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	dataCopy := make([]models.TableFour, len(s.inclinometry))
-	copy(dataCopy, s.inclinometry)
+	dataCopy := make([]models.TableFour, len(s.blockFour))
+	copy(dataCopy, s.blockFour)
+	return dataCopy, nil
+}
+
+func (s *Storage) GetTableFiveData() (models.TableFive, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	dataCopy := s.blockFive
 	return dataCopy, nil
 }
 
@@ -123,9 +141,9 @@ func (s *Storage) GetAllBlockFourData() ([]models.TableFour, error) {
 func (s *Storage) ClearAll() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.blockOneData = make([]models.TableOne, 0)
-	s.blockTwoData = make([]models.TableTwo, 0)
-	s.blockThreeData = make([]models.TableThree, 0)
+	s.blockOne = make([]models.TableOne, 0)
+	s.blockTwo = make([]models.TableTwo, 0)
+	s.blockThree = make([]models.TableThree, 0)
 	return nil
 }
 
@@ -133,34 +151,19 @@ func (s *Storage) ClearAll() error {
 func (s *Storage) CountBlockOne() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return len(s.blockOneData)
+	return len(s.blockOne)
 }
 
 // CountBlockTwo возвращает количество записей TableTwo.
 func (s *Storage) CountBlockTwo() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return len(s.blockTwoData)
+	return len(s.blockTwo)
 }
 
 // CountBlockThree возвращает количество записей TableThree.
 func (s *Storage) CountBlockThree() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return len(s.blockThreeData)
-}
-
-func (s *Storage) AddBlockFourData(data []models.TableFour) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.inclinometry = append(s.inclinometry, data...)
-	return nil // В in-memory обычно нет ошибок добавления, кроме нехватки памяти (panic)
-}
-
-func (s *Storage) SetResearchID(researchID uuid.UUID) {
-	s.researchID = researchID
-}
-
-func (s *Storage) GetResearchID() uuid.UUID {
-	return s.researchID
+	return len(s.blockThree)
 }
