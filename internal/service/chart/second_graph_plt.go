@@ -20,9 +20,9 @@ func generateEchartsTableTwoData(data []models.TableTwo) ([][]opts.LineData, []s
 		yLabels[1] = append(yLabels[1], opts.LineData{Value: point.PressureTubing, Name: point.TimestampTubing.Format(time.RFC3339)})
 		yLabels[2] = append(yLabels[2], opts.LineData{Value: point.PressureLinear, Name: point.TimestampLinear.Format(time.RFC3339)})
 
-		uniqueXLabels[point.TimestampAnnulus.Format("15:04:05")] = struct{}{} // Только время для краткости оси X
-		uniqueXLabels[point.TimestampTubing.Format("15:04:05")] = struct{}{}  // Только время для краткости оси X
-		uniqueXLabels[point.TimestampLinear.Format("15:04:05")] = struct{}{}  // Только время для краткости оси X
+		uniqueXLabels[point.TimestampAnnulus.Format("02.01.02 15:04")] = struct{}{}
+		uniqueXLabels[point.TimestampTubing.Format("02.01.02 15:04")] = struct{}{}
+		uniqueXLabels[point.TimestampLinear.Format("02.01.02 15:04")] = struct{}{}
 	}
 	uniqueSlice := make([]string, 0, len(uniqueXLabels))
 	for key := range uniqueXLabels {

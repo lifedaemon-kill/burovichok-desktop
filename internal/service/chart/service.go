@@ -9,14 +9,16 @@ import (
 )
 
 const (
-	chartHTMLFilenameOne = "burovichok_second_chart.html"
-	chartHTMLFilenameTwo = "burovichok_second_chart.html"
+	chartHTMLFilenameOne   = "burovichok_first_chart.html"
+	chartHTMLFilenameTwo   = "burovichok_second_chart.html"
+	chartHTMLFilenameThree = "burovichok_third_chart.html"
 )
 
 type Service interface {
 	// GenerateTableOneChart генерирует HTML файл графика и возвращает путь к нему
 	GenerateTableOneChart(data []models.TableOne) (string, error)
 	GenerateTableTwoChart(data []models.TableTwo, units string) (string, error)
+	GenerateTableThreeChart(data []models.TableThree) (string, error)
 }
 
 type chartService struct{}
