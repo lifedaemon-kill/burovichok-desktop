@@ -179,10 +179,10 @@ func (s *Service) ParseBlockThreeFile(path string) ([]models.TableThree, error) 
 		}
 
 		res := models.TableThree{
-			Timestamp:  ts,
-			FlowLiquid: flowL,
-			WaterCut:   wc,
-			FlowGas:    flowG,
+			Timestamp:      ts,
+			LiquidFlowRate: flowL,
+			WaterCut:       wc,
+			GasFlowRate:    flowG,
 		}
 
 		res = s.calc.CalcBlockThree(res)
