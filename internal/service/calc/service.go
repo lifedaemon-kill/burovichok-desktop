@@ -94,13 +94,7 @@ func (s *Service) CalcBlockThree(tbl models.TableThree) models.TableThree {
 }
 
 // CalcBlockFive calculates automatic fields for TableFive using Block 4 survey data.
-func (s *Service) CalcBlockFive(ctx context.Context, tbl models.TableFive, researchID uuid.UUID) models.TableFive {
-	// 1. Получаем данные инклинометрии (Block 4) для скважины
-	survey, err := s.dataLoader.GetBlockFourByResearchID(ctx, researchID)
-	if err != nil {
-		s.logger.Errorw("CalcBlockFive: failed to get block four data", "error", err)
-		return tbl
-	}
+func (s *Service) CalcBlockFive(ctx context.Context, tbl models.TableFive, survey []models.TableFour) models.TableFive {
 
 	// 2. Вычисляем TVD и TVDSS для прибора по MD
 	tvd, tvdss := interpolateTVD(survey, tbl.MeasuredDepth)

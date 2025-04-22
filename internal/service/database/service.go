@@ -3,16 +3,14 @@ package database
 import (
 	"context"
 
-	"github.com/google/uuid"
-	"github.com/cockroachdb/errors" 
-
+	"github.com/cockroachdb/errors"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/postgres"
 )
 
-// service реализует Service через Postgres хранилище
+// Service реализуется через Postgres хранилище
 type Service struct {
 	pg  *postgres.Postgres
 	log logger.Logger
@@ -48,19 +46,17 @@ func (d *Service) SaveReport(ctx context.Context, tableFive models.TableFive) (i
 	return id, nil
 }
 
-
 func (s *Service) AddOilFieldEntry(ctx context.Context, name string) error {
 	entry := models.OilField{Name: name}
 	entries := []models.OilField{entry}
 	err := s.pg.AddOilField(ctx, entries)
 	if err != nil {
 		s.log.Errorw("Database service failed to add oilfield entry", "name", name, "error", err)
-		return errors.Wrap(err, "database: AddOilFieldEntry failed") 
+		return errors.Wrap(err, "database: AddOilFieldEntry failed")
 	}
 	s.log.Debugw("Database service added oilfield entry", "name", name)
 	return nil
 }
-
 
 // GetAllInstrumentTypes возвращает все InstrumentType
 func (d *Service) GetAllInstrumentTypes(ctx context.Context) ([]models.InstrumentType, error) {
@@ -152,26 +148,4 @@ func (d *Service) SaveResearchTypes(ctx context.Context, researches []models.Res
 	d.log.Debugw("SaveResearchTypes succeeded", "count", len(researches))
 
 	return nil
-}
-
-func (d *Service) GetBlockFourByResearchID(ctx context.Context, researchID uuid.UUID) ([]models.TableFour, error) {
-	res, err := d.pg.GetBlockFourByID(ctx, researchID)
-	if err != nil {
-		d.log.Errorw("GetBlockFourByWell failed", "error", err)
-		return nil, err
-	}
-	d.log.Debugw("GetBlockFourByWell succeeded")
-
-	return res, nil
-}
-
-func (d *Service) SaveBlockFour(ctx context.Context, items []models.TableFour) (uuid.UUID, error) {
-	id, err := d.pg.AddBlockFour(ctx, items)
-	if err != nil {
-		d.log.Errorw("SaveBlockFour failed", "error", err)
-		return uuid.Nil, err
-	}
-	d.log.Debugw("SaveBlockFour succeeded", "count", len(items))
-
-	return id, nil
 }

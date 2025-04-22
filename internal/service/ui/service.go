@@ -19,7 +19,6 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
-	"github.com/google/uuid"
 	"github.com/pkg/browser"
 
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/config"
@@ -866,14 +865,14 @@ func (s *Service) showBlockFiveForm(ctx context.Context) {
 			}
 
 			// Расчет и сохранение остаётся без изменений
-			researchID := s.memBlocksStorage.GetResearchID()
-			if researchID == uuid.Nil {
-				s.zLog.Errorw("Failed to Get ResearchID", "error", err)
+			tFour, err := s.memBlocksStorage.GetAllBlockFourData()
+			if len(tFour) == 0 {
+				s.zLog.Errorw("table four is len 0", "error", err)
 				dialog.ShowError(fmt.Errorf("вы не импортировали блок 4 для отчетов"), s.window)
 				return
 			}
 
-			report = s.calc.CalcBlockFive(ctx, report, researchID)
+			report = s.calc.CalcBlockFive(ctx, report, tFour)
 
 			id, err := s.db.SaveReport(ctx, report)
 			if err != nil {
@@ -977,13 +976,13 @@ func (s *Service) doGenericImport(ctx context.Context, path, typ string) {
 			data, finalErr = s.importer.ParseBlockFourFile(path)
 			count = len(data)
 			if finalErr == nil {
-				id, dbErr := s.db.SaveBlockFour(ctx, data)
-				if dbErr == nil {
-					s.memBlocksStorage.SetResearchID(id)
-					finalErr = s.memBlocksStorage.AddBlockFourData(data)
-				} else {
-					finalErr = dbErr
-				}
+				//	id, dbErr := s.db.SaveBlockFour(ctx, data)
+				//	if dbErr == nil {
+				//		s.memBlocksStorage.SetResearchID(id)
+				finalErr = s.memBlocksStorage.AddBlockFourData(data)
+				//	} else {
+				//		finalErr = dbErr
+				//	}
 			}
 		}
 

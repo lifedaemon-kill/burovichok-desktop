@@ -24,6 +24,7 @@ type InMemoryBlocksStorage interface {
 	GetAllBlockOneData() ([]models.TableOne, error)
 	GetAllBlockTwoData() ([]models.TableTwo, error)
 	GetAllBlockThreeData() ([]models.TableThree, error)
+	GetAllBlockFourData() ([]models.TableFour, error)
 
 	// Метод для очистки всего хранилища
 	ClearAll() error
@@ -106,6 +107,15 @@ func (s *Storage) GetAllBlockThreeData() ([]models.TableThree, error) {
 	defer s.mu.RUnlock()
 	dataCopy := make([]models.TableThree, len(s.blockThreeData))
 	copy(dataCopy, s.blockThreeData)
+	return dataCopy, nil
+}
+
+// GetAllBlockFourData возвращает копию всех данных TableFour
+func (s *Storage) GetAllBlockFourData() ([]models.TableFour, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	dataCopy := make([]models.TableFour, len(s.inclinometry))
+	copy(dataCopy, s.inclinometry)
 	return dataCopy, nil
 }
 

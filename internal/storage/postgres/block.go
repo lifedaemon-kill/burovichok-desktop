@@ -19,7 +19,7 @@ func (p *Postgres) GetAllTableFive(ctx context.Context) ([]models.TableFive, err
 	if err != nil {
 		return nil, errors.Wrap(err, "building GetAllTableFive query")
 	}
-	if err := p.DB.SelectContext(ctx, &reports, sqlStr, args...); err != nil {
+	if err = p.DB.SelectContext(ctx, &reports, sqlStr, args...); err != nil {
 		return nil, errors.Wrap(err, "executing GetAllTableFive query")
 	}
 	return reports, nil
