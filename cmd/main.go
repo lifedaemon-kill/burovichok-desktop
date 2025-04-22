@@ -25,6 +25,11 @@ import (
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 
 	chartService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/chart"
+
+
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
+	archiverService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/archiver" // Добавим импорт для нового сервиса
 )
 
 func main() {
@@ -74,6 +79,37 @@ func bootstrap(ctx context.Context) error {
 	}
 	zLog.Infow("Migrations applied successfully")
 
+
+	minioClient, err := minio.New(conf.Minio.Endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(conf.Minio.AccessKey, conf.Minio.SecretKey, ""),
+		Secure: conf.Minio.UseSSL,
+	})
+	if err != nil {
+		zLog.Errorw("minio.New failed", "error", err)
+		return errors.Wrap(err, "failed to initialize minio client")
+	}
+
+
+	bucketName := conf.Minio.BucketName
+	exists, err := minioClient.BucketExists(ctx, bucketName)
+	if err != nil {
+		zLog.Errorw("minio.BucketExists failed", "bucket", bucketName, "error", err)
+		return errors.Wrapf(err, "failed to check if minio bucket '%s' exists", bucketName)
+	}
+	if !exists {
+		zLog.Infow("MinIO bucket does not exist, attempting to create", "bucket", bucketName)
+		err = minioClient.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{}) // Можно указать регион, если нужно
+		if err != nil {
+			zLog.Errorw("minio.MakeBucket failed", "bucket", bucketName, "error", err)
+			return errors.Wrapf(err, "failed to create minio bucket '%s'", bucketName)
+		}
+		zLog.Infow("MinIO bucket created successfully", "bucket", bucketName)
+	} else {
+		zLog.Infow("MinIO bucket already exists", "bucket", bucketName)
+	}
+	zLog.Infow("MinIO client initialized successfully")
+
+
 	// 5. Создание сервиса работы с БД
 	dbService := database.NewService(pg, zLog)
 
@@ -83,6 +119,10 @@ func bootstrap(ctx context.Context) error {
 	importer := importerService.NewService(calc, converter)
 	chartSvc := chartService.NewService()
 	inMemoryStorage := inmemory.NewInMemoryBlocksStorage()
+
+
+	archiver := archiverService.NewService(inMemoryStorage, minioClient, bucketName, zLog)
+
 
 	// 7. Запуск UI
 	err = os.Setenv("LANG", "ru_RU.UTF-8")
@@ -99,7 +139,9 @@ func bootstrap(ctx context.Context) error {
 		dbService,
 		chartSvc,
 		calc,
+		archiver,
 	)
+	
 	if err = ui.Run(ctx); err != nil {
 		zLog.Errorw("UI service failed", "error", err)
 		return err

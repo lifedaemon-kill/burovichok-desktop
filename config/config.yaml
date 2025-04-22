@@ -4,12 +4,22 @@ logger:
   env: prod  # prod или dev отвечает за уровень логирования
 
 db:
-  dsn: "postgres://postgres:84625@127.0.0.1:5432/burovichok?sslmode=disable"
+  # dsn: "postgres://postgres:zxc@db:5432/burovichok?sslmode=disable" #для буровичка в докере на будущее мб
+  dsn: "postgres://postgres:zxc@127.0.0.1:5432/burovichok?sslmode=disable"
   confmigration_path: "migrations"
   max_open_conns:    1
   max_Idle_conns:    1
   conn_max_lifetime: 10
   max_retries:       10
+
+minio:
+  # endpoint: "minio:9000"     #для буровичка в докере на будущее мб
+  endpoint: "127.0.0.1:9000" #для локального запуска без docker-compose MinIO
+  access_key: "admin"       
+  secret_key: "zxc123456789"         
+  use_ssl: false
+  bucket_name: "burovichok-archives" # Название бакета
+
 
 ui:
   name: "burovichok"

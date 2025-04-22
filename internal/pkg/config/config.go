@@ -18,6 +18,7 @@ type Config struct {
 	DB     DBConf     `yaml:"db" env-required:"true"`
 	Logger LoggerConf `yaml:"logger" env-required:"true"`
 	UI     UI         `yaml:"ui" env-required:"true"`
+	Minio  MinioConf  `yaml:"minio" env-required:"true"` 
 }
 
 func Load(configPath string) (*Config, error) {
@@ -47,9 +48,19 @@ type LoggerConf struct {
 	Env string `yaml:"env" env-required:"true"`
 }
 
+
+type MinioConf struct {
+	Endpoint   string `yaml:"endpoint" env-required:"true"`
+	AccessKey  string `yaml:"access_key" env-required:"true"`
+	SecretKey  string `yaml:"secret_key" env-required:"true"`
+	UseSSL     bool   `yaml:"use_ssl"`
+	BucketName string `yaml:"bucket_name" env-required:"true"`
+}
+
 type UI struct {
 	Name     string `yaml:"name" env-required:"true"`
 	Width    int    `yaml:"width" env-required:"true"`
 	Height   int    `yaml:"height" env-required:"true"`
 	IconPath string `yaml:"icon_path" env-required:"true"`
 }
+
