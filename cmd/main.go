@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	archiverService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/export/archiver"
-	minio2 "github.com/lifedaemon-kill/burovichok-desktop/internal/service/export/minioExporter"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	archiverService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/export/archiver"
+	minio2 "github.com/lifedaemon-kill/burovichok-desktop/internal/service/export/minioExporter"
 
 	"github.com/cockroachdb/errors"
 

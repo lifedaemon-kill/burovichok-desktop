@@ -111,8 +111,8 @@ func (s *chartService) GenerateTableTwoChart(data []models.TableTwo, units strin
 	err = line.Render(f)
 	if err != nil {
 		return "", errors.Wrap(err, "не удалось отрендерить график в файл "+
-			HTMLFileNameOne+"_second_block.html")
+		HTMLFileNameTwo+"_second_block.html")
 	}
 
-	return HTMLFileNameOne, nil
+	return HTMLFileNameTwo, nil
 }

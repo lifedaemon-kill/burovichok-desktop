@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/validation"
@@ -81,10 +82,13 @@ func (s *Service) showChartsView(ctx context.Context) {
 		s.chartHtmlToServe = htmlPath
 		s.serverMutex.Unlock()
 		if err := s.startLocalWebServer(); err != nil {
+			s.serverMutex.Lock()
+			s.chartHtmlToServe = ""
+			s.serverMutex.Unlock()
 			dialog.ShowError(fmt.Errorf("ошибка запуска веб-сервера для графика: %w", err), s.window)
 			return
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(150 * time.Millisecond)
 		s.serverMutex.Lock()
 		port := s.serverPort
 		s.serverMutex.Unlock()
@@ -93,6 +97,8 @@ func (s *Service) showChartsView(ctx context.Context) {
 			return
 		}
 		url := fmt.Sprintf("http://127.0.0.1:%s/", port)
+		s.zLog.Debugw("Opening chart via web server", "url", url, "serving", htmlPath) // Логгируем
+
 		if err := browser.OpenURL(url); err != nil {
 			dialog.ShowError(fmt.Errorf("не удалось открыть браузер: %w", err), s.window)
 		}
@@ -148,11 +154,14 @@ func (s *Service) showChartsView(ctx context.Context) {
 				s.chartHtmlToServe = htmlPath
 				s.serverMutex.Unlock()
 				if err := s.startLocalWebServer(); err != nil {
+					s.serverMutex.Lock()
+					s.chartHtmlToServe = ""
+					s.serverMutex.Unlock()
 					dialog.ShowError(fmt.Errorf("ошибка запуска веб-сервера: %w", err), s.window)
 					return
 				}
 				// Небольшая задержка, чтобы сервер успел подняться
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(150 * time.Millisecond)
 				s.serverMutex.Lock()
 				port := s.serverPort
 				s.serverMutex.Unlock()
@@ -161,6 +170,8 @@ func (s *Service) showChartsView(ctx context.Context) {
 					return
 				}
 				url := fmt.Sprintf("http://127.0.0.1:%s/", port)
+				s.zLog.Debugw("Opening chart via web server", "url", url, "serving", htmlPath) // Логгируем
+
 				if err := browser.OpenURL(url); err != nil {
 					dialog.ShowError(fmt.Errorf("не удалось открыть браузер: %w", err), s.window)
 				}
@@ -192,10 +203,13 @@ func (s *Service) showChartsView(ctx context.Context) {
 		s.chartHtmlToServe = htmlPath
 		s.serverMutex.Unlock()
 		if err := s.startLocalWebServer(); err != nil {
+			s.serverMutex.Lock()
+			s.chartHtmlToServe = ""
+			s.serverMutex.Unlock()
 			dialog.ShowError(fmt.Errorf("ошибка запуска веб-сервера для графика: %w", err), s.window)
 			return
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(150 * time.Millisecond)
 		s.serverMutex.Lock()
 		port := s.serverPort
 		s.serverMutex.Unlock()
@@ -204,6 +218,8 @@ func (s *Service) showChartsView(ctx context.Context) {
 			return
 		}
 		url := fmt.Sprintf("http://127.0.0.1:%s/", port)
+		s.zLog.Debugw("Opening chart via web server", "url", url, "serving", htmlPath) // Логгируем
+
 		if err := browser.OpenURL(url); err != nil {
 			dialog.ShowError(fmt.Errorf("не удалось открыть браузер: %w", err), s.window)
 		}

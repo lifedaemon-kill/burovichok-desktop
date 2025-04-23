@@ -2,12 +2,13 @@ package chart
 
 import (
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/cockroachdb/errors"
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
-	"os"
-	"time"
 )
 
 func generateEchartsTableThreeData(data []models.TableThree) ([][]opts.ScatterData, []string) {
