@@ -79,8 +79,6 @@ func (s *chartService) GenerateTableOneChart(data []models.TableOne) (string, er
 				},
 			},
 		}),
-		// Можно выбрать тему оформления
-		//charts.WithTheme(types.ThemeInfographic),
 	)
 
 	tableOneData, xLabels := generateEchartsTableOneData(data)
@@ -93,7 +91,13 @@ func (s *chartService) GenerateTableOneChart(data []models.TableOne) (string, er
 			charts.WithLineChartOpts(opts.LineChart{Smooth: opts.Bool(false)}),
 			charts.WithLabelOpts(opts.Label{Show: opts.Bool(false)}),
 		)
-
+	// Проверяем, существует ли папка
+	if _, err := os.Stat(HtmlChartsDirectory); os.IsNotExist(err) {
+		err = os.Mkdir(HtmlChartsDirectory, 0755) // 0755 - права доступа
+		if err != nil {
+			return "", errors.Wrap(err, "Ошибка при создании папки:")
+		}
+	}
 	f, err := os.Create(HTMLFileNameOne)
 	if err != nil {
 		return "", fmt.Errorf("не удалось создать файл %s: %w", HTMLFileNameOne, err)

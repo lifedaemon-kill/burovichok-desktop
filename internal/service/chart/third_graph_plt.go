@@ -97,7 +97,13 @@ func (s *chartService) GenerateTableThreeChart(data []models.TableThree) (string
 		SetSeriesOptions(
 			charts.WithLabelOpts(opts.Label{Show: opts.Bool(false)}),
 		)
-
+	// Проверяем, существует ли папка
+	if _, err := os.Stat(HtmlChartsDirectory); os.IsNotExist(err) {
+		err = os.Mkdir(HtmlChartsDirectory, 0755) // 0755 - права доступа
+		if err != nil {
+			return "", errors.Wrap(err, "Ошибка при создании папки:")
+		}
+	}
 	f, err := os.Create(HTMLFileNameThree)
 	if err != nil {
 		return "", fmt.Errorf("не удалось создать файл %s: %w", HTMLFileNameThree, err)

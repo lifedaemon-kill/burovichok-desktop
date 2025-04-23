@@ -101,7 +101,13 @@ func (s *chartService) GenerateTableTwoChart(data []models.TableTwo, units strin
 			charts.WithLineChartOpts(opts.LineChart{Smooth: opts.Bool(false)}),
 			charts.WithLabelOpts(opts.Label{Show: opts.Bool(false)}),
 		)
-
+	// Проверяем, существует ли папка
+	if _, err := os.Stat(HtmlChartsDirectory); os.IsNotExist(err) {
+		err = os.Mkdir(HtmlChartsDirectory, 0755) // 0755 - права доступа
+		if err != nil {
+			return "", errors.Wrap(err, "Ошибка при создании папки:")
+		}
+	}
 	f, err := os.Create(HTMLFileNameTwo)
 	if err != nil {
 		return "", errors.Wrap(err, "не удалось создать файл "+HTMLFileNameOne+"_second_block.html")
@@ -111,7 +117,7 @@ func (s *chartService) GenerateTableTwoChart(data []models.TableTwo, units strin
 	err = line.Render(f)
 	if err != nil {
 		return "", errors.Wrap(err, "не удалось отрендерить график в файл "+
-		HTMLFileNameTwo+"_second_block.html")
+			HTMLFileNameTwo+"_second_block.html")
 	}
 
 	return HTMLFileNameTwo, nil
