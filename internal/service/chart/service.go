@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	chartHTMLFilenameOne   = "burovichok_first_chart.html"
-	chartHTMLFilenameTwo   = "burovichok_second_chart.html"
-	chartHTMLFilenameThree = "burovichok_third_chart.html"
+	HtmlChartsDirectory = "charts/"
+	HTMLFileNameOne     = HtmlChartsDirectory + "first_chart.html"
+	HTMLFileNameTwo     = HtmlChartsDirectory + "second_chart.html"
+	HTMLFileNameThree   = HtmlChartsDirectory + "third_chart.html"
 )
 
 type Service interface {

@@ -94,9 +94,9 @@ func (s *chartService) GenerateTableOneChart(data []models.TableOne) (string, er
 			charts.WithLabelOpts(opts.Label{Show: opts.Bool(false)}),
 		)
 
-	f, err := os.Create(chartHTMLFilenameOne)
+	f, err := os.Create(HTMLFileNameOne)
 	if err != nil {
-		return "", fmt.Errorf("не удалось создать файл %s: %w", chartHTMLFilenameOne, err)
+		return "", fmt.Errorf("не удалось создать файл %s: %w", HTMLFileNameOne, err)
 	}
 	defer f.Close()
 
@@ -105,5 +105,5 @@ func (s *chartService) GenerateTableOneChart(data []models.TableOne) (string, er
 		return "", fmt.Errorf("не удалось отрендерить график в файл: %w", err)
 	}
 
-	return chartHTMLFilenameOne, nil
+	return HTMLFileNameOne, nil
 }

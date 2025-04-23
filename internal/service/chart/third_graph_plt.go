@@ -2,12 +2,13 @@ package chart
 
 import (
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/cockroachdb/errors"
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
-	"os"
-	"time"
 )
 
 func generateEchartsTableThreeData(data []models.TableThree) ([][]opts.ScatterData, []string) {
@@ -38,7 +39,7 @@ func (s *chartService) GenerateTableThreeChart(data []models.TableThree) (string
 
 	line.SetGlobalOptions(
 		charts.WithTitleOpts(opts.Title{
-			Title: "",
+			Title: "Дебиты",
 		}),
 		charts.WithTooltipOpts(opts.Tooltip{ // Всплывающие подсказки при наведении
 			Show:      opts.Bool(true),
@@ -97,9 +98,9 @@ func (s *chartService) GenerateTableThreeChart(data []models.TableThree) (string
 			charts.WithLabelOpts(opts.Label{Show: opts.Bool(false)}),
 		)
 
-	f, err := os.Create(chartHTMLFilenameThree)
+	f, err := os.Create(HTMLFileNameThree)
 	if err != nil {
-		return "", fmt.Errorf("не удалось создать файл %s: %w", chartHTMLFilenameThree, err)
+		return "", fmt.Errorf("не удалось создать файл %s: %w", HTMLFileNameThree, err)
 	}
 	defer f.Close()
 
@@ -108,5 +109,5 @@ func (s *chartService) GenerateTableThreeChart(data []models.TableThree) (string
 		return "", fmt.Errorf("не удалось отрендерить график в файл: %w", err)
 	}
 
-	return chartHTMLFilenameThree, nil
+	return HTMLFileNameThree, nil
 }

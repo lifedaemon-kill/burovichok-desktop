@@ -1,12 +1,8 @@
 package calc
 
 import (
-	"context"
-
-	"github.com/google/uuid"
 	"github.com/samber/lo"
 
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 )
 
@@ -15,30 +11,12 @@ import (
 // единицы измерения должны быть идентичны выбранным ранее единицам измерения давления при импорте Рзаб на глубине
 // замера. Т.е. формула для пересчета должна учитывать разные сценарии (пересчетные коэффициенты) в зависимости от ранее заданных при импорте значений Рзаб (атм,
 // кгс/см2, бар)
-// CalcTableOne
+// TableOne
 
 const g = 9.80665 // м/с²
 
-type DataLoader interface {
-	GetBlockFourByResearchID(ctx context.Context, researchID uuid.UUID) ([]models.TableFour, error)
-}
-
-// Service отвечает за логику расчетов данных в моделях.
-type Service struct {
-	dataLoader DataLoader
-	logger     logger.Logger
-}
-
-// NewService создает новый экземпляр сервис импорта.
-func NewService(dataLoader DataLoader, logger logger.Logger) *Service {
-	return &Service{
-		dataLoader: dataLoader,
-		logger:     logger,
-	}
-}
-
-// CalcTableOne применяет гидростатику к одной записи, возвращая с заполненным PressureVPD.
-func (s *Service) CalcTableOne(rec models.TableOne, cfg models.OperationConfig) models.TableOne {
+// TableOne применяет гидростатику к одной записи, возвращая с заполненным PressureVPD.
+func TableOne(rec models.TableOne, cfg models.OperationConfig) models.TableOne {
 	// 1) переводим измеренное давление в Па
 	p0 := toPa(rec.PressureDepth, cfg.PressureUnit)
 
@@ -64,13 +42,13 @@ func (s *Service) CalcTableOne(rec models.TableOne, cfg models.OperationConfig) 
 	return rec
 }
 
-// CalcBlockThree рассчитывает дебиты нефти (Qн), воды (Qв) и газовый фактор (ГФ)
+// TableThree рассчитывает дебиты нефти (Qн), воды (Qв) и газовый фактор (ГФ)
 // на основании входных данных TableThree:
 //
 //	LiquidFlowRate — общий дебит жидкости Qж, м³/сут
 //	WaterCut    — обводненность W, %
 //	GasFlowRate     — дебит газа Qг, тыс. м³/сут
-func (s *Service) CalcBlockThree(tbl models.TableThree) models.TableThree {
+func TableThree(tbl models.TableThree) models.TableThree {
 	// 1) вычисляем дебит воды Qв = Qж * W/100
 	waterRate := tbl.LiquidFlowRate * tbl.WaterCut / 100.0
 
@@ -93,14 +71,8 @@ func (s *Service) CalcBlockThree(tbl models.TableThree) models.TableThree {
 	return tbl
 }
 
-// CalcBlockFive calculates automatic fields for TableFive using Block 4 survey data.
-func (s *Service) CalcBlockFive(ctx context.Context, tbl models.TableFive, researchID uuid.UUID) models.TableFive {
-	// 1. Получаем данные инклинометрии (Block 4) для скважины
-	survey, err := s.dataLoader.GetBlockFourByResearchID(ctx, researchID)
-	if err != nil {
-		s.logger.Errorw("CalcBlockFive: failed to get block four data", "error", err)
-		return tbl
-	}
+// TableFive calculates automatic fields for TableFive using Block 4 survey data.
+func TableFive(tbl models.TableFive, survey []models.TableFour) models.TableFive {
 
 	// 2. Вычисляем TVD и TVDSS для прибора по MD
 	tvd, tvdss := interpolateTVD(survey, tbl.MeasuredDepth)

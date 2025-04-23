@@ -102,17 +102,17 @@ func (s *chartService) GenerateTableTwoChart(data []models.TableTwo, units strin
 			charts.WithLabelOpts(opts.Label{Show: opts.Bool(false)}),
 		)
 
-	f, err := os.Create(chartHTMLFilenameTwo)
+	f, err := os.Create(HTMLFileNameTwo)
 	if err != nil {
-		return "", errors.Wrap(err, "не удалось создать файл "+chartHTMLFilenameOne+"_second_block.html")
+		return "", errors.Wrap(err, "не удалось создать файл "+HTMLFileNameOne+"_second_block.html")
 	}
 	defer f.Close()
 
 	err = line.Render(f)
 	if err != nil {
 		return "", errors.Wrap(err, "не удалось отрендерить график в файл "+
-			chartHTMLFilenameOne+"_second_block.html")
+		HTMLFileNameTwo+"_second_block.html")
 	}
 
-	return chartHTMLFilenameOne, nil
+	return HTMLFileNameTwo, nil
 }
