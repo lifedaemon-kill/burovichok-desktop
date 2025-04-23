@@ -1,11 +1,9 @@
 package ui
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"github.com/cockroachdb/errors"
-	archiver "github.com/lifedaemon-kill/burovichok-desktop/internal/service/export/archiver"
-	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/export/minioExporter"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -13,6 +11,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cockroachdb/errors"
+	archiverService "github.com/lifedaemon-kill/burovichok-desktop/internal/service/export/archiver"
+	"github.com/lifedaemon-kill/burovichok-desktop/internal/service/export/minioExporter"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -41,6 +43,16 @@ type converterService interface {
 	ParseFlexibleTime(raw string) (time.Time, error)
 }
 
+type archiver interface { // Локальное определение интерфейса, чтобы было понятно, чего мы ожидаем
+	Archive(
+		t1 []models.TableOne,
+		t2 []models.TableTwo,
+		t3 []models.TableThree,
+		t4 []models.TableFour,
+		t5 models.TableFive,
+	) (*bytes.Buffer, error)
+}
+
 type Service struct {
 	app              fyne.App
 	window           fyne.Window
@@ -50,7 +62,7 @@ type Service struct {
 	db               *database.Service
 	converter        converterService
 	chart            chartService.Service
-	archiver         *archiver.Service
+	archiver         archiverService.Archiver
 	exporter         *minioExporter.Client
 	serverMutex      sync.Mutex
 	serverListener   net.Listener
@@ -63,7 +75,7 @@ type Service struct {
 
 func NewService(cfg config.UI, zLog logger.Logger, imp importer, converter converterService,
 	memBlocksStorage inmemoryStorage.InMemoryBlocksStorage, db *database.Service, chart chartService.Service,
-	archiver *archiver.Service, exporter *minioExporter.Client) *Service {
+	archiver archiverService.Archiver, exporter *minioExporter.Client) *Service {
 
 	a := app.New()
 	win := a.NewWindow(cfg.Name)

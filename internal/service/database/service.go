@@ -6,6 +6,7 @@ import (
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/logger"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/pkg/models"
 	"github.com/lifedaemon-kill/burovichok-desktop/internal/storage/postgres"
+	"github.com/pkg/errors"
 )
 
 // Service реализуется через Postgres хранилище
@@ -18,6 +19,17 @@ type Service struct {
 func NewService(pg *postgres.Postgres, zLog logger.Logger) *Service {
 	zLog.Infow("Postgres repository initialized successfully")
 	return &Service{pg: pg, log: zLog}
+}
+
+
+func (s *Service) SaveArchiveInfo(ctx context.Context, info models.ArchiveInfo) error {
+	err := s.pg.SaveArchiveInfo(ctx, info) // Вызываем метод из postgres
+	if err != nil {
+		s.log.Errorw("Database service failed to save archive info", "object_name", info.ObjectName, "error", err)
+		return errors.Wrap(err, "database: SaveArchiveInfo failed")
+	}
+	s.log.Infow("Database service saved archive info", "object_name", info.ObjectName)
+	return nil
 }
 
 // GetAllReports возвращает все TableFive

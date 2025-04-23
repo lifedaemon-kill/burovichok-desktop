@@ -269,13 +269,8 @@ func (s *Service) showExportView(ctx context.Context) {
 		dialog.ShowError(fmt.Errorf("директория "+chartService.HtmlChartsDirectory+" содержит не правильное число графиков, должно быть 3"), s.window)
 		return
 	}
-	arch, err := s.archiver.Archive(
-		t1,
-		t2,
-		t3,
-		t4,
-		t5,
-	)
+	arch, err := s.archiver.Archive(t1, t2, t3, t4, t5) 
+
 	if err != nil {
 		s.zLog.Errorw("Ошибка инициализации архива в буфер")
 		dialog.ShowError(err, s.window)
@@ -283,20 +278,50 @@ func (s *Service) showExportView(ctx context.Context) {
 	}
 	filenamebase := strings.TrimSpace(t5.FieldName + "_" + t5.ResearchType)
 	filenamebase = strings.ReplaceAll(filenamebase, " ", "-")
-	go func() {
-		info, err := s.exporter.Upload(ctx, filenamebase, arch)
-		if err != nil {
-			s.zLog.Errorw("Ошибка", err)
-			dialog.ShowError(err, s.window)
-			return
-		}
-		s.zLog.Infow("Экспорт данных", "data", info)
-		//TODO загрузить info в postgres
-		//s.db.SaveArchiveInfo(info)
-		dialog.ShowInformation("Экспорт", "Данные экспортированы успешно!", s.window)
-	}()
 
-	return
+	go func() {
+        uploadCtx := context.Background() // Используем новый контекст для фоновой задачи
+		s.showLoadingIndicator("Выгрузка архива: " + filenamebase) // Показываем индикатор
+
+        // Вызываем Upload из exporter, передавая ему имя и буфер
+		info, err := s.exporter.Upload(uploadCtx, filenamebase, arch)
+		finalErr := err // Сохраняем ошибку выгрузки
+
+		if finalErr == nil {
+			// Если выгрузка УСПЕШНА, пытаемся сохранить метаданные
+			s.zLog.Infow("Экспорт данных успешен, сохраняем метаданные", "data", info)
+
+            // Создаем модель для сохранения в БД
+            archiveInfoModel := models.ArchiveInfo{
+                ObjectName: info.Key, // exporter.Upload должен вернуть имя объекта (info.Key?)
+                BucketName: info.Bucket,
+                Size:       info.Size,
+                ETag:       info.ETag,
+                UploadedAt: time.Now(), // Фиксируем время сохранения метаданных
+            }
+
+			// Вызываем метод сервиса БД
+			errDb := s.db.SaveArchiveInfo(uploadCtx, archiveInfoModel)
+			if errDb != nil {
+				// Логируем ошибку сохранения метаданных, но не перезаписываем finalErr,
+                // т.к. основная операция (выгрузка) прошла успешно.
+				s.zLog.Errorw("Не удалось сохранить метаданные архива в БД", "object_name", info.Key, "error", errDb)
+                // Можно показать пользователю предупреждение, что выгрузка прошла, но запись в БД не удалась.
+                // Например, добавив к сообщению об успехе "(ошибка сохранения деталей)"
+			}
+		}
+
+        // Скрываем индикатор и показываем результат (с учетом ошибки выгрузки)
+		s.hideLoadingIndicator(finalErr) // Показываем только ошибку выгрузки, если она была
+
+		if finalErr == nil {
+			dialog.ShowInformation("Экспорт", "Данные экспортированы успешно!", s.window)
+		}
+        // Ошибку выгрузки покажет hideLoadingIndicator
+
+	}() // Конец горутины
+
+	
 }
 
 func (s *Service) showGuidebookView(ctx context.Context) {
