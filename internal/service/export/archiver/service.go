@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -43,7 +42,7 @@ func NewService(
 	}
 }
 
-// Archive возвращает t1 t2 t3 t4 t5 в виде зип архиве в буфере
+// Archive возвращает t1 t2 t3 t4 t5 в виде зип архива в буфере
 func (s *service) Archive(
 	t1 []models.TableOne,
 	t2 []models.TableTwo,
@@ -51,71 +50,63 @@ func (s *service) Archive(
 	t4 []models.TableFour,
 	t5 models.TableFive,
 ) (*bytes.Buffer, error) {
-	s.log.Infow("Starting archiving process") // Убрали "and upload"
+	s.log.Infow("Starting archiving process")
 
-	// Используем буфер в памяти для создания ZIP-архива
+	//Проверяем, что все блоки импортированы
+	if (len(t1) * len(t2) * len(t3) * len(t4)) == 0 {
+		return nil, errors.New("сначала ипортируйте все 4 блока")
+	}
+	//Проверяем, что техническая карта составлена
+	if t5 == (models.TableFive{}) {
+		return nil, errors.New("сначала заполните Тех. карту")
+	}
+
+	// 1. Используем буфер в памяти для создания ZIP-архива
 	zipBuf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(zipBuf)
-
-	// Проверка на пустые данные (можно сделать более гранулярной)
-	if len(t1) == 0 && len(t2) == 0 && len(t3) == 0 && len(t4) == 0 && t5.ID == 0 { // Проверяем ID у t5
-		return nil, errors.Wrap(errors.New("Нет данных для архивации"), "")
-	}
 
 	var finalErr error // Для сбора ошибок из хелперов
 
 	// 2. Создаем и добавляем XLSX файлы в архив
 	// Блок 1
-	if len(t1) > 0 {
-		if err := tableOneToXLSXBuffer(zipWriter, "Block_1_PressureTemp.xlsx", t1); err != nil {
-			finalErr = errors.Wrap(err, "failed to add block 1 to zip") // Собираем ошибки
-			s.log.Errorw("Archiver error", "error", finalErr)           // Логируем
-			// Не выходим сразу, пытаемся добавить другие файлы
-		} else {
-			s.log.Debugw("Added Block 1 to ZIP")
-		}
+	if err := tableOneToXLSXBuffer(zipWriter, "Block_1_PressureTemp.xlsx", t1); err != nil {
+		finalErr = errors.Wrap(err, "failed to add block 1 to zip") // Собираем ошибки
+		s.log.Errorw("Archiver error", "error", finalErr)           // Логируем
+		// Не выходим сразу, пытаемся добавить другие файлы
+	} else {
+		s.log.Debugw("Added Block 1 to ZIP")
 	}
 
 	// Блок 2
-	if len(t2) > 0 {
-		// --- ИСПРАВЛЕНИЕ ТУТ: Передаем логгер в хелпер ---
-		if err := tableTwoToXLSXBuffer(zipWriter, "Block_2_TubingAnnulus.xlsx", t2, s.log); err != nil {
-			finalErr = errors.Wrap(err, "failed to add block 2 to zip")
-			s.log.Errorw("Archiver error", "error", finalErr)
-		} else {
-			s.log.Debugw("Added Block 2 to ZIP")
-		}
+	if err := tableTwoToXLSXBuffer(zipWriter, "Block_2_TubingAnnulus.xlsx", t2, s.log); err != nil {
+		finalErr = errors.Wrap(err, "failed to add block 2 to zip")
+		s.log.Errorw("Archiver error", "error", finalErr)
+	} else {
+		s.log.Debugw("Added Block 2 to ZIP")
 	}
 
 	// Блок 3
-	if len(t3) > 0 {
-		// --- ИСПРАВЛЕНИЕ ТУТ: Передаем логгер в хелпер ---
-		if err := tableThreeToXLSXBuffer(zipWriter, "Block_3_FlowRates.xlsx", t3, s.log); err != nil {
-			finalErr = errors.Wrap(err, "failed to add block 3 to zip")
-			s.log.Errorw("Archiver error", "error", finalErr)
-		} else {
-			s.log.Debugw("Added Block 3 to ZIP")
-		}
+	if err := tableThreeToXLSXBuffer(zipWriter, "Block_3_FlowRates.xlsx", t3, s.log); err != nil {
+		finalErr = errors.Wrap(err, "failed to add block 3 to zip")
+		s.log.Errorw("Archiver error", "error", finalErr)
+	} else {
+		s.log.Debugw("Added Block 3 to ZIP")
 	}
+
 	// Блок 4
-	if len(t4) > 0 {
-		// --- ИСПРАВЛЕНИЕ ТУТ: Передаем логгер в хелпер ---
-		if err := tableFourToXLSXBuffer(zipWriter, "Block_4_Inclinometry.xlsx", t4, s.log); err != nil {
-			finalErr = errors.Wrap(err, "failed to add block 4 to zip")
-			s.log.Errorw("Archiver error", "error", finalErr)
-		} else {
-			s.log.Debugw("Added Block 4 to ZIP")
-		}
+	if err := tableFourToXLSXBuffer(zipWriter, "Block_4_Inclinometry.xlsx", t4, s.log); err != nil {
+		finalErr = errors.Wrap(err, "failed to add block 4 to zip")
+		s.log.Errorw("Archiver error", "error", finalErr)
+	} else {
+		s.log.Debugw("Added Block 4 to ZIP")
 	}
+
 	//Блок 5
-	if t5.ID != 0 { // Проверяем, что TableFive не пустой (по ID)
-		// --- ИСПРАВЛЕНИЕ ТУТ: Передаем логгер в хелпер ---
-		if err := tableFiveToXLSXBuffer(zipWriter, "Block_5_Tech_card.xlsx", t5, s.log); err != nil {
-			finalErr = errors.Wrap(err, "failed to add block 5 to zip")
-			s.log.Errorw("Archiver error", "error", finalErr)
-		} else {
-			s.log.Debugw("Added Block 5 to ZIP")
-		}
+	if err := tableFiveToXLSXBuffer(zipWriter, "Block_5_Tech_card.xlsx", t5, s.log); err != nil {
+		finalErr = errors.Wrap(err, "failed to add block 5 to zip")
+		s.log.Errorw("Archiver error", "error", finalErr)
+	} else {
+		s.log.Debugw("Added Block 5 to ZIP")
 	}
 
 	// 3. Завершаем создание ZIP-архива
@@ -137,50 +128,6 @@ func (s *service) Archive(
 }
 
 // --- Хелперы для записи данных в XLSX и добавления в ZIP ---
-
-// Вспомогательная функция для записи данных в io.Writer внутри ZIP
-func addFileToZip(zipWriter *zip.Writer, filename string, generatorFunc func(w io.Writer) error) error {
-	fileWriter, err := zipWriter.Create(filename)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create '%s' in zip", filename)
-	}
-	// Используем буфер, чтобы сначала сгенерировать XLSX, потом записать
-	excelBuf := new(bytes.Buffer)
-	xlsxFile := excelize.NewFile()
-
-	// Генерация контента XLSX файла (пример для TableOne)
-	sheetName := "Data" // Имя листа
-	// Заголовки
-	headers := []string{"timestamp", "pressure_depth", "temperature_depth", "pressure_at_vdp"} // Используй models.TableOne{}.Columns() если они есть
-	for i, h := range headers {
-		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		_ = xlsxFile.SetCellValue(sheetName, cell, h)
-	}
-	// Данные (нужно реализовать запись data1 в xlsxFile)
-	// Примерно так:
-	// for rowIdx, rowData := range data1 {
-	//    _ = xlsxFile.SetCellValue(sheetName, fmt.Sprintf("A%d", rowIdx+2), rowData.Timestamp.Format(time.RFC3339))
-	//    _ = xlsxFile.SetCellValue(sheetName, fmt.Sprintf("B%d", rowIdx+2), rowData.PressureDepth)
-	//    // ... и так далее для всех полей ...
-	//    // Не забыть про *float64 - проверять на nil
-	//    if rowData.PressureAtVDP != nil {
-	//        _ = xlsxFile.SetCellValue(sheetName, fmt.Sprintf("D%d", rowIdx+2), *rowData.PressureAtVDP)
-	//    } else {
-	//		  _ = xlsxFile.SetCellValue(sheetName, fmt.Sprintf("D%d", rowIdx+2), nil) // или пустую строку
-	//    }
-	// }
-
-	if err := xlsxFile.Write(excelBuf); err != nil {
-		return errors.Wrapf(err, "failed to write excel data to buffer for '%s'", filename)
-	}
-
-	// Копируем сгенерированный Excel из буфера в ZIP
-	if _, err := io.Copy(fileWriter, excelBuf); err != nil {
-		return errors.Wrapf(err, "failed to copy excel buffer to zip writer for '%s'", filename)
-	}
-
-	return nil
-}
 
 // Создадим отдельные функции для каждого типа таблицы
 func tableOneToXLSXBuffer(zipWriter *zip.Writer, filename string, data []models.TableOne) error {
