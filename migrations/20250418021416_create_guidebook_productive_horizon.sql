@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE productive_horizon (
+CREATE TABLE IF NOT EXISTS productive_horizon (
     id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL
 );

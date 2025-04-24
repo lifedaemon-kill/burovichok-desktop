@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE instrument_type (
+CREATE TABLE IF NOT EXISTS instrument_type (
     id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL
 );

@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE TABLE reports (
+CREATE TABLE IF NOT EXISTS reports (
     id                          SERIAL PRIMARY KEY,
     field_name                  TEXT    NOT NULL,
     field_number                INTEGER NOT NULL,

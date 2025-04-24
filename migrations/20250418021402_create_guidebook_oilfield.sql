@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE oilfield (
+CREATE TABLE IF NOT EXISTS oilfield (
     id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL
 );

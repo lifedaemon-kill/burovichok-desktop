@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE research_type
+CREATE TABLE IF NOT EXISTS research_type
 (
     id   SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL
