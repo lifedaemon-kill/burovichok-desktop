@@ -24,7 +24,7 @@ func (s *Service) showMainMenu(ctx context.Context) {
 	importsBtn := widget.NewButton("Импортирование данных", func() { s.showImportView(ctx) })
 	reportsBtn := widget.NewButton("Создание Технологической карты", func() { s.showReportsView(ctx) })
 	chartsBtn := widget.NewButton("Создание графиков", func() { s.showChartsView(ctx) })
-	exportBtn := widget.NewButton("Экспортирование данных", func() { s.showExportView(ctx) })
+	exportBtn := widget.NewButton("Экспортирование данных", func() { s.showExportView() })
 	guidebooksBtn := widget.NewButton("Редактирование справочников", func() { s.showGuidebookView(ctx) })
 
 	// NewGridWrap принимает размер ячейки — и «упаковывает» каждый элемент в box этого размера
@@ -236,7 +236,7 @@ func (s *Service) showChartsView(ctx context.Context) {
 	))
 }
 
-func (s *Service) showExportView(ctx context.Context) {
+func (s *Service) showExportView() {
 	s.zLog.Debugw("Open export view")
 
 	t1, _ := s.memStorage.GetTableOneData()
@@ -245,16 +245,6 @@ func (s *Service) showExportView(ctx context.Context) {
 	t4, _ := s.memStorage.GetTableFourData()
 	t5, _ := s.memStorage.GetTableFiveData()
 
-	//Проверяем, что все блоки импортированы
-	if (len(t1) * len(t2) * len(t3) * len(t4)) == 0 {
-		dialog.ShowError(fmt.Errorf("сначала ипортируйте все 4 блока"), s.window)
-		return
-	}
-	//Проверяем, что техническая карта составлена
-	if t5 == (models.TableFive{}) {
-		dialog.ShowError(fmt.Errorf("сначала заполните Тех. карту"), s.window)
-		return
-	}
 	// Проверяем, есть ли элементы в директории
 	entries, err := os.ReadDir(chartService.HtmlChartsDirectory)
 	if err != nil {
