@@ -29,3 +29,13 @@ go build -o burovichok.exe cmd/main.go
 ```bash
 docker-compose -f build/docker-compose/docker-compose.yaml up
 ```
+
+
+![изображение](https://github.com/user-attachments/assets/560184f3-20b9-4653-b8f2-890b89c61a15)
+
+Нанять девочка дизайнершу, чтобы нарисовала красивый UI
+
+Расширить функционал графиков и анализа данных
+
+![изображение](https://github.com/user-attachments/assets/ca5ff021-eab7-4926-9195-dfce6123f8c7)
+
